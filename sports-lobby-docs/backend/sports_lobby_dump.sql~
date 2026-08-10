@@ -1,0 +1,1320 @@
+--
+-- PostgreSQL database dump
+--
+
+\restrict esJn2U06TNQXpLfefppR5gY15Xjgr2JQRuzJyTdTXOOZwIQVrxgfQhIi3hfviel
+
+-- Dumped from database version 16.14 (Debian 16.14-1.pgdg13+1)
+-- Dumped by pg_dump version 16.14 (Debian 16.14-1.pgdg13+1)
+
+SET statement_timeout = 0;
+SET lock_timeout = 0;
+SET idle_in_transaction_session_timeout = 0;
+SET client_encoding = 'UTF8';
+SET standard_conforming_strings = on;
+SELECT pg_catalog.set_config('search_path', '', false);
+SET check_function_bodies = false;
+SET xmloption = content;
+SET client_min_messages = warning;
+SET row_security = off;
+
+SET default_tablespace = '';
+
+SET default_table_access_method = heap;
+
+--
+-- Name: admin_audit_events; Type: TABLE; Schema: public; Owner: sports_lobby
+--
+
+CREATE TABLE public.admin_audit_events (
+    id uuid NOT NULL,
+    actor_user_id uuid NOT NULL,
+    action character varying(80) NOT NULL,
+    target_type character varying(80) NOT NULL,
+    target_id uuid NOT NULL,
+    reason character varying(1000),
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+
+ALTER TABLE public.admin_audit_events OWNER TO sports_lobby;
+
+--
+-- Name: app_metadata; Type: TABLE; Schema: public; Owner: sports_lobby
+--
+
+CREATE TABLE public.app_metadata (
+    id uuid NOT NULL,
+    metadata_key character varying(100) NOT NULL,
+    metadata_value character varying(500) NOT NULL,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+
+ALTER TABLE public.app_metadata OWNER TO sports_lobby;
+
+--
+-- Name: court_sports; Type: TABLE; Schema: public; Owner: sports_lobby
+--
+
+CREATE TABLE public.court_sports (
+    court_id uuid NOT NULL,
+    sport_id uuid NOT NULL,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+
+ALTER TABLE public.court_sports OWNER TO sports_lobby;
+
+--
+-- Name: courts; Type: TABLE; Schema: public; Owner: sports_lobby
+--
+
+CREATE TABLE public.courts (
+    id uuid NOT NULL,
+    venue_id uuid NOT NULL,
+    name character varying(120) NOT NULL,
+    description character varying(1000),
+    status character varying(30) DEFAULT 'ACTIVE'::character varying NOT NULL,
+    default_min_players integer,
+    default_max_players integer,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT courts_capacity_check CHECK ((((default_min_players IS NULL) AND (default_max_players IS NULL)) OR ((default_min_players > 0) AND (default_max_players >= default_min_players)))),
+    CONSTRAINT courts_status_check CHECK (((status)::text = ANY ((ARRAY['ACTIVE'::character varying, 'INACTIVE'::character varying])::text[])))
+);
+
+
+ALTER TABLE public.courts OWNER TO sports_lobby;
+
+--
+-- Name: files; Type: TABLE; Schema: public; Owner: sports_lobby
+--
+
+CREATE TABLE public.files (
+    id uuid NOT NULL,
+    owner_user_id uuid NOT NULL,
+    owner_vendor_id uuid,
+    purpose character varying(60) NOT NULL,
+    storage_provider character varying(30) NOT NULL,
+    bucket_name character varying(120) NOT NULL,
+    object_key character varying(500) NOT NULL,
+    original_file_name character varying(255) NOT NULL,
+    content_type character varying(120) NOT NULL,
+    size_bytes bigint NOT NULL,
+    access_level character varying(30) NOT NULL,
+    upload_status character varying(30) NOT NULL,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT files_access_level_check CHECK (((access_level)::text = ANY ((ARRAY['PRIVATE'::character varying, 'PUBLIC'::character varying])::text[]))),
+    CONSTRAINT files_purpose_check CHECK (((purpose)::text = 'VENDOR_VERIFICATION_DOCUMENT'::text)),
+    CONSTRAINT files_size_check CHECK (((size_bytes > 0) AND (size_bytes <= 10485760))),
+    CONSTRAINT files_upload_status_check CHECK (((upload_status)::text = ANY ((ARRAY['PENDING_UPLOAD'::character varying, 'UPLOADED'::character varying, 'ABANDONED'::character varying])::text[])))
+);
+
+
+ALTER TABLE public.files OWNER TO sports_lobby;
+
+--
+-- Name: flyway_schema_history; Type: TABLE; Schema: public; Owner: sports_lobby
+--
+
+CREATE TABLE public.flyway_schema_history (
+    installed_rank integer NOT NULL,
+    version character varying(50),
+    description character varying(200) NOT NULL,
+    type character varying(20) NOT NULL,
+    script character varying(1000) NOT NULL,
+    checksum integer,
+    installed_by character varying(100) NOT NULL,
+    installed_on timestamp without time zone DEFAULT now() NOT NULL,
+    execution_time integer NOT NULL,
+    success boolean NOT NULL
+);
+
+
+ALTER TABLE public.flyway_schema_history OWNER TO sports_lobby;
+
+--
+-- Name: lobbies; Type: TABLE; Schema: public; Owner: sports_lobby
+--
+
+CREATE TABLE public.lobbies (
+    id uuid NOT NULL,
+    vendor_id uuid NOT NULL,
+    venue_id uuid NOT NULL,
+    court_id uuid NOT NULL,
+    sport_id uuid NOT NULL,
+    status character varying(30) DEFAULT 'DRAFT'::character varying NOT NULL,
+    starts_at timestamp with time zone NOT NULL,
+    ends_at timestamp with time zone NOT NULL,
+    venue_timezone_snapshot character varying(80) NOT NULL,
+    min_players integer NOT NULL,
+    max_players integer NOT NULL,
+    reserved_seat_count integer DEFAULT 0 NOT NULL,
+    pricing_model character varying(40) NOT NULL,
+    currency_code character(3) NOT NULL,
+    total_court_price numeric(12,2),
+    price_per_seat numeric(12,2),
+    description character varying(1000),
+    cancellation_deadline_at timestamp with time zone NOT NULL,
+    confirmation_deadline_at timestamp with time zone NOT NULL,
+    published_at timestamp with time zone,
+    cancelled_at timestamp with time zone,
+    cancellation_reason_code character varying(80),
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT lobbies_capacity_check CHECK (((min_players > 0) AND (max_players >= min_players) AND (reserved_seat_count >= 0) AND (reserved_seat_count <= max_players))),
+    CONSTRAINT lobbies_price_check CHECK (((((pricing_model)::text = 'TOTAL_COURT_PRICE'::text) AND (total_court_price IS NOT NULL) AND (total_court_price >= (0)::numeric) AND (price_per_seat IS NOT NULL) AND (price_per_seat >= (0)::numeric)) OR (((pricing_model)::text = 'PRICE_PER_PLAYER'::text) AND (price_per_seat IS NOT NULL) AND (price_per_seat >= (0)::numeric)))),
+    CONSTRAINT lobbies_pricing_model_check CHECK (((pricing_model)::text = ANY ((ARRAY['TOTAL_COURT_PRICE'::character varying, 'PRICE_PER_PLAYER'::character varying])::text[]))),
+    CONSTRAINT lobbies_status_check CHECK (((status)::text = ANY ((ARRAY['DRAFT'::character varying, 'OPEN'::character varying, 'FULL'::character varying, 'CONFIRMED'::character varying, 'IN_PROGRESS'::character varying, 'COMPLETED'::character varying, 'CANCELLED'::character varying, 'EXPIRED'::character varying])::text[]))),
+    CONSTRAINT lobbies_time_check CHECK (((ends_at > starts_at) AND (cancellation_deadline_at <= starts_at) AND (confirmation_deadline_at <= starts_at)))
+);
+
+
+ALTER TABLE public.lobbies OWNER TO sports_lobby;
+
+--
+-- Name: otp_challenges; Type: TABLE; Schema: public; Owner: sports_lobby
+--
+
+CREATE TABLE public.otp_challenges (
+    id uuid NOT NULL,
+    phone_e164 character varying(20) NOT NULL,
+    purpose character varying(40) NOT NULL,
+    code_hash character varying(64) NOT NULL,
+    expires_at timestamp with time zone NOT NULL,
+    consumed_at timestamp with time zone,
+    attempt_count integer DEFAULT 0 NOT NULL,
+    max_attempts integer NOT NULL,
+    resend_available_at timestamp with time zone NOT NULL,
+    requested_by_user_id uuid,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT otp_challenges_attempts_check CHECK (((attempt_count >= 0) AND (max_attempts > 0))),
+    CONSTRAINT otp_challenges_purpose_check CHECK (((purpose)::text = 'PHONE_VERIFICATION'::text))
+);
+
+
+ALTER TABLE public.otp_challenges OWNER TO sports_lobby;
+
+--
+-- Name: password_reset_tokens; Type: TABLE; Schema: public; Owner: sports_lobby
+--
+
+CREATE TABLE public.password_reset_tokens (
+    id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    token_hash character varying(64) NOT NULL,
+    expires_at timestamp with time zone NOT NULL,
+    consumed_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+
+ALTER TABLE public.password_reset_tokens OWNER TO sports_lobby;
+
+--
+-- Name: player_profiles; Type: TABLE; Schema: public; Owner: sports_lobby
+--
+
+CREATE TABLE public.player_profiles (
+    user_id uuid NOT NULL,
+    display_name character varying(201),
+    profile_image_file_id uuid,
+    home_country_code character(2),
+    home_city character varying(120),
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+
+ALTER TABLE public.player_profiles OWNER TO sports_lobby;
+
+--
+-- Name: refresh_sessions; Type: TABLE; Schema: public; Owner: sports_lobby
+--
+
+CREATE TABLE public.refresh_sessions (
+    id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    token_hash character varying(64) NOT NULL,
+    device_label character varying(200),
+    expires_at timestamp with time zone NOT NULL,
+    revoked_at timestamp with time zone,
+    replaced_by_session_id uuid,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    last_used_at timestamp with time zone
+);
+
+
+ALTER TABLE public.refresh_sessions OWNER TO sports_lobby;
+
+--
+-- Name: reservations; Type: TABLE; Schema: public; Owner: sports_lobby
+--
+
+CREATE TABLE public.reservations (
+    id uuid NOT NULL,
+    lobby_id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    status character varying(30) NOT NULL,
+    seat_count integer DEFAULT 1 NOT NULL,
+    unit_price_snapshot numeric(12,2) NOT NULL,
+    currency_code_snapshot character(3) NOT NULL,
+    reserved_at timestamp with time zone NOT NULL,
+    cancelled_at timestamp with time zone,
+    cancellation_actor character varying(30),
+    cancellation_reason_code character varying(80),
+    attendance_status character varying(30) DEFAULT 'UNKNOWN'::character varying NOT NULL,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT reservations_attendance_status_check CHECK (((attendance_status)::text = ANY ((ARRAY['UNKNOWN'::character varying, 'ATTENDED'::character varying, 'NO_SHOW'::character varying, 'EXCUSED'::character varying])::text[]))),
+    CONSTRAINT reservations_cancel_check CHECK ((((status)::text <> 'CANCELLED'::text) OR ((cancelled_at IS NOT NULL) AND (cancellation_actor IS NOT NULL)))),
+    CONSTRAINT reservations_seat_count_check CHECK ((seat_count = 1)),
+    CONSTRAINT reservations_status_check CHECK (((status)::text = ANY ((ARRAY['RESERVED'::character varying, 'CONFIRMED'::character varying, 'CANCELLED'::character varying, 'COMPLETED'::character varying])::text[])))
+);
+
+
+ALTER TABLE public.reservations OWNER TO sports_lobby;
+
+--
+-- Name: sports; Type: TABLE; Schema: public; Owner: sports_lobby
+--
+
+CREATE TABLE public.sports (
+    id uuid NOT NULL,
+    code character varying(60) NOT NULL,
+    name character varying(120) NOT NULL,
+    is_active boolean DEFAULT true NOT NULL,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+
+ALTER TABLE public.sports OWNER TO sports_lobby;
+
+--
+-- Name: user_roles; Type: TABLE; Schema: public; Owner: sports_lobby
+--
+
+CREATE TABLE public.user_roles (
+    user_id uuid NOT NULL,
+    role character varying(30) NOT NULL,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT user_roles_role_check CHECK (((role)::text = ANY ((ARRAY['PLAYER'::character varying, 'VENDOR'::character varying, 'ADMIN'::character varying])::text[])))
+);
+
+
+ALTER TABLE public.user_roles OWNER TO sports_lobby;
+
+--
+-- Name: users; Type: TABLE; Schema: public; Owner: sports_lobby
+--
+
+CREATE TABLE public.users (
+    id uuid NOT NULL,
+    first_name character varying(100) NOT NULL,
+    last_name character varying(100) NOT NULL,
+    email character varying(255) NOT NULL,
+    phone_e164 character varying(20) NOT NULL,
+    phone_verified_at timestamp with time zone,
+    email_verified_at timestamp with time zone,
+    password_hash character varying(255),
+    status character varying(30) DEFAULT 'ACTIVE'::character varying NOT NULL,
+    preferred_locale character varying(20) DEFAULT 'en'::character varying NOT NULL,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT users_phone_e164_check CHECK (((phone_e164)::text ~ '^\+[1-9][0-9]{7,14}$'::text)),
+    CONSTRAINT users_status_check CHECK (((status)::text = ANY ((ARRAY['ACTIVE'::character varying, 'RESTRICTED'::character varying, 'SUSPENDED'::character varying, 'DELETED'::character varying])::text[])))
+);
+
+
+ALTER TABLE public.users OWNER TO sports_lobby;
+
+--
+-- Name: vendor_members; Type: TABLE; Schema: public; Owner: sports_lobby
+--
+
+CREATE TABLE public.vendor_members (
+    vendor_id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    member_role character varying(30) NOT NULL,
+    status character varying(30) NOT NULL,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT vendor_members_role_check CHECK (((member_role)::text = ANY ((ARRAY['OWNER'::character varying, 'MANAGER'::character varying, 'STAFF'::character varying])::text[]))),
+    CONSTRAINT vendor_members_status_check CHECK (((status)::text = ANY ((ARRAY['ACTIVE'::character varying, 'INVITED'::character varying, 'REMOVED'::character varying])::text[])))
+);
+
+
+ALTER TABLE public.vendor_members OWNER TO sports_lobby;
+
+--
+-- Name: vendor_verification_documents; Type: TABLE; Schema: public; Owner: sports_lobby
+--
+
+CREATE TABLE public.vendor_verification_documents (
+    id uuid NOT NULL,
+    submission_id uuid NOT NULL,
+    file_id uuid NOT NULL,
+    document_type character varying(60) NOT NULL,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT vendor_verification_documents_type_check CHECK (((document_type)::text = ANY ((ARRAY['BUSINESS_LICENSE'::character varying, 'OWNER_ID'::character varying, 'FACILITY_PHOTO'::character varying, 'OTHER'::character varying])::text[])))
+);
+
+
+ALTER TABLE public.vendor_verification_documents OWNER TO sports_lobby;
+
+--
+-- Name: vendor_verification_submissions; Type: TABLE; Schema: public; Owner: sports_lobby
+--
+
+CREATE TABLE public.vendor_verification_submissions (
+    id uuid NOT NULL,
+    vendor_id uuid NOT NULL,
+    status character varying(30) NOT NULL,
+    submitted_at timestamp with time zone NOT NULL,
+    reviewed_at timestamp with time zone,
+    reviewed_by_admin_user_id uuid,
+    decision_reason character varying(1000),
+    submission_number integer NOT NULL,
+    business_name_snapshot character varying(180) NOT NULL,
+    contact_phone_snapshot character varying(20) NOT NULL,
+    contact_email_snapshot character varying(255) NOT NULL,
+    country_code_snapshot character(2) NOT NULL,
+    city_snapshot character varying(120) NOT NULL,
+    area_snapshot character varying(120),
+    address_line_snapshot character varying(255) NOT NULL,
+    latitude_snapshot numeric(9,6),
+    longitude_snapshot numeric(9,6),
+    supported_sports_snapshot text,
+    venue_count_estimate_snapshot integer,
+    opening_hours_snapshot text,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT vendor_verification_submissions_rejection_reason_check CHECK ((((status)::text <> 'REJECTED'::text) OR ((decision_reason IS NOT NULL) AND (length(TRIM(BOTH FROM decision_reason)) > 0)))),
+    CONSTRAINT vendor_verification_submissions_status_check CHECK (((status)::text = ANY ((ARRAY['PENDING'::character varying, 'APPROVED'::character varying, 'REJECTED'::character varying])::text[])))
+);
+
+
+ALTER TABLE public.vendor_verification_submissions OWNER TO sports_lobby;
+
+--
+-- Name: vendors; Type: TABLE; Schema: public; Owner: sports_lobby
+--
+
+CREATE TABLE public.vendors (
+    id uuid NOT NULL,
+    owner_user_id uuid NOT NULL,
+    business_name character varying(180) NOT NULL,
+    contact_phone character varying(20) NOT NULL,
+    contact_email character varying(255) NOT NULL,
+    country_code character(2) NOT NULL,
+    city character varying(120) NOT NULL,
+    area character varying(120),
+    address_line character varying(255) NOT NULL,
+    latitude numeric(9,6),
+    longitude numeric(9,6),
+    supported_sports text,
+    venue_count_estimate integer,
+    opening_hours text,
+    verification_status character varying(30) NOT NULL,
+    approved_at timestamp with time zone,
+    suspended_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT vendors_contact_phone_check CHECK (((contact_phone)::text ~ '^\+[1-9][0-9]{7,14}$'::text)),
+    CONSTRAINT vendors_latitude_check CHECK (((latitude IS NULL) OR ((latitude >= ('-90'::integer)::numeric) AND (latitude <= (90)::numeric)))),
+    CONSTRAINT vendors_longitude_check CHECK (((longitude IS NULL) OR ((longitude >= ('-180'::integer)::numeric) AND (longitude <= (180)::numeric)))),
+    CONSTRAINT vendors_status_check CHECK (((verification_status)::text = ANY ((ARRAY['PENDING'::character varying, 'APPROVED'::character varying, 'REJECTED'::character varying, 'SUSPENDED'::character varying])::text[]))),
+    CONSTRAINT vendors_venue_count_check CHECK (((venue_count_estimate IS NULL) OR (venue_count_estimate >= 0)))
+);
+
+
+ALTER TABLE public.vendors OWNER TO sports_lobby;
+
+--
+-- Name: venues; Type: TABLE; Schema: public; Owner: sports_lobby
+--
+
+CREATE TABLE public.venues (
+    id uuid NOT NULL,
+    vendor_id uuid NOT NULL,
+    name character varying(180) NOT NULL,
+    description character varying(1000),
+    country_code character(2) NOT NULL,
+    city character varying(120) NOT NULL,
+    area character varying(120),
+    address_line character varying(255) NOT NULL,
+    latitude numeric(9,6) NOT NULL,
+    longitude numeric(9,6) NOT NULL,
+    timezone character varying(80) NOT NULL,
+    contact_phone character varying(20) NOT NULL,
+    status character varying(30) DEFAULT 'ACTIVE'::character varying NOT NULL,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
+    CONSTRAINT venues_contact_phone_check CHECK (((contact_phone)::text ~ '^\+[1-9][0-9]{7,14}$'::text)),
+    CONSTRAINT venues_latitude_check CHECK (((latitude >= ('-90'::integer)::numeric) AND (latitude <= (90)::numeric))),
+    CONSTRAINT venues_longitude_check CHECK (((longitude >= ('-180'::integer)::numeric) AND (longitude <= (180)::numeric))),
+    CONSTRAINT venues_status_check CHECK (((status)::text = ANY ((ARRAY['DRAFT'::character varying, 'ACTIVE'::character varying, 'INACTIVE'::character varying, 'SUSPENDED'::character varying])::text[])))
+);
+
+
+ALTER TABLE public.venues OWNER TO sports_lobby;
+
+--
+-- Data for Name: admin_audit_events; Type: TABLE DATA; Schema: public; Owner: sports_lobby
+--
+
+COPY public.admin_audit_events (id, actor_user_id, action, target_type, target_id, reason, created_at) FROM stdin;
+07bdd21f-b3c1-4e77-9dbf-2a07fb0e78eb	2df71a9e-8725-412d-891c-f1f252f4fdae	VENDOR_APPROVED	VENDOR	758d535c-0367-4647-8258-9b53a776d5f8	Documents reviewed.	2026-08-10 19:01:26.398793+00
+\.
+
+
+--
+-- Data for Name: app_metadata; Type: TABLE DATA; Schema: public; Owner: sports_lobby
+--
+
+COPY public.app_metadata (id, metadata_key, metadata_value, created_at, updated_at) FROM stdin;
+00000000-0000-0000-0000-000000000001	schema.bootstrap	1	2026-08-10 12:51:24.938832+00	2026-08-10 12:51:24.938832+00
+\.
+
+
+--
+-- Data for Name: court_sports; Type: TABLE DATA; Schema: public; Owner: sports_lobby
+--
+
+COPY public.court_sports (court_id, sport_id, created_at) FROM stdin;
+50c5f030-fc50-4687-b9c7-00a3b4397474	10000000-0000-0000-0000-000000000002	2026-08-10 16:45:58.46026+00
+91aa38f9-abe4-429d-9bbb-13db5b9998f8	10000000-0000-0000-0000-000000000002	2026-08-10 16:46:18.821552+00
+52e1033c-8f2d-498a-bc48-3df0f67fc397	10000000-0000-0000-0000-000000000001	2026-08-10 16:47:02.612296+00
+ac2051d7-2f6f-416b-bde9-8ca550f7f105	10000000-0000-0000-0000-000000000001	2026-08-10 16:47:09.318018+00
+bf0ae1f9-9f27-4338-b5bb-26f64140d082	10000000-0000-0000-0000-000000000001	2026-08-10 16:58:17.170632+00
+0e6aa66a-7129-423f-9110-6b6d8c5f8bb9	10000000-0000-0000-0000-000000000001	2026-08-10 16:59:13.917821+00
+84269e69-5b84-4a79-8727-98537fa14507	10000000-0000-0000-0000-000000000006	2026-08-10 16:59:20.972912+00
+6bbf27b5-2eaf-452f-96b0-5c98f0800ba7	10000000-0000-0000-0000-000000000006	2026-08-10 16:59:35.164819+00
+d9e8d208-c17d-46e3-98bf-cf18acb84aa4	10000000-0000-0000-0000-000000000001	2026-08-10 18:38:46.084757+00
+c812b9d5-7f53-419a-bc99-e4a297735cae	10000000-0000-0000-0000-000000000001	2026-08-10 18:39:20.067102+00
+\.
+
+
+--
+-- Data for Name: courts; Type: TABLE DATA; Schema: public; Owner: sports_lobby
+--
+
+COPY public.courts (id, venue_id, name, description, status, default_min_players, default_max_players, created_at, updated_at) FROM stdin;
+50c5f030-fc50-4687-b9c7-00a3b4397474	da369e71-ee77-4f8a-9fe1-291f7c678aee	Court 1	Bookable court.	ACTIVE	8	12	2026-08-10 16:45:58.458163+00	2026-08-10 16:45:58.458163+00
+91aa38f9-abe4-429d-9bbb-13db5b9998f8	da369e71-ee77-4f8a-9fe1-291f7c678aee	Court2	Bookable court.	ACTIVE	8	12	2026-08-10 16:46:18.81951+00	2026-08-10 16:46:18.81951+00
+52e1033c-8f2d-498a-bc48-3df0f67fc397	168bfb9f-28d0-4b17-ac9f-cf33527791e7	dap Court 1	Bookable court.	ACTIVE	8	12	2026-08-10 16:47:02.610235+00	2026-08-10 16:47:02.610235+00
+ac2051d7-2f6f-416b-bde9-8ca550f7f105	168bfb9f-28d0-4b17-ac9f-cf33527791e7	dap Court 12	Bookable court.	ACTIVE	8	12	2026-08-10 16:47:09.31668+00	2026-08-10 16:47:09.31668+00
+bf0ae1f9-9f27-4338-b5bb-26f64140d082	011383db-829c-46ba-b016-1a6d1ab276fa	Court 1	Bookable court.	ACTIVE	6	14	2026-08-10 16:58:17.169001+00	2026-08-10 16:58:17.169001+00
+0e6aa66a-7129-423f-9110-6b6d8c5f8bb9	011383db-829c-46ba-b016-1a6d1ab276fa	Court 2	Bookable court.	ACTIVE	5	22	2026-08-10 16:59:13.91631+00	2026-08-10 16:59:13.91631+00
+84269e69-5b84-4a79-8727-98537fa14507	f9afb1bb-c531-4c1f-9faa-65a3275c1e13	Court 2	Bookable court.	ACTIVE	5	22	2026-08-10 16:59:20.97158+00	2026-08-10 16:59:20.97158+00
+6bbf27b5-2eaf-452f-96b0-5c98f0800ba7	f9afb1bb-c531-4c1f-9faa-65a3275c1e13	Court 2	Bookable court.	ACTIVE	5	22	2026-08-10 16:59:35.16334+00	2026-08-10 16:59:35.16334+00
+d9e8d208-c17d-46e3-98bf-cf18acb84aa4	c2c20a3e-e1b3-4705-a30e-27aa1c87f8b6	football 1	Bookable court.	ACTIVE	8	12	2026-08-10 18:38:46.082012+00	2026-08-10 18:38:46.082012+00
+c812b9d5-7f53-419a-bc99-e4a297735cae	c2c20a3e-e1b3-4705-a30e-27aa1c87f8b6	football 2	Bookable court.	ACTIVE	8	12	2026-08-10 18:39:20.065224+00	2026-08-10 18:39:20.065224+00
+\.
+
+
+--
+-- Data for Name: files; Type: TABLE DATA; Schema: public; Owner: sports_lobby
+--
+
+COPY public.files (id, owner_user_id, owner_vendor_id, purpose, storage_provider, bucket_name, object_key, original_file_name, content_type, size_bytes, access_level, upload_status, created_at, updated_at) FROM stdin;
+7bac6158-b09c-420a-a698-a7cf635bbcf7	8dd1021b-e683-4148-80a4-729d11526622	36a1ce22-ab84-4564-a433-15ded6c97787	VENDOR_VERIFICATION_DOCUMENT	S3	sports-lobby-dev	vendor-verification/36a1ce22-ab84-4564-a433-15ded6c97787/7bac6158-b09c-420a-a698-a7cf635bbcf7-business-license.pdf	business-license.pdf	application/pdf	1024	PRIVATE	PENDING_UPLOAD	2026-08-10 16:43:24.246846+00	2026-08-10 16:43:24.246846+00
+ec60fd02-2b28-4e43-8785-1d9f7ecd6b22	64c70db5-df4b-43c9-8a86-0a9d4f052984	1fd8c5b8-a004-4801-bc41-07ce809e904b	VENDOR_VERIFICATION_DOCUMENT	S3	sports-lobby-dev	vendor-verification/1fd8c5b8-a004-4801-bc41-07ce809e904b/ec60fd02-2b28-4e43-8785-1d9f7ecd6b22-business-license.pdf	business-license.pdf	application/pdf	1024	PRIVATE	PENDING_UPLOAD	2026-08-10 16:57:25.881239+00	2026-08-10 16:57:25.881239+00
+292fb845-7aba-47a8-902a-4f1b544e6410	e23f5c89-e6d3-4d4b-ac44-d57fc411e013	8284518d-afa9-4b73-82fe-933d246c4d4b	VENDOR_VERIFICATION_DOCUMENT	S3	sports-lobby-dev	vendor-verification/8284518d-afa9-4b73-82fe-933d246c4d4b/292fb845-7aba-47a8-902a-4f1b544e6410-business-license.pdf	business-license.pdf	application/pdf	1024	PRIVATE	PENDING_UPLOAD	2026-08-10 18:14:05.899593+00	2026-08-10 18:14:05.899593+00
+5c40669f-be84-4b3f-8d2c-6ca6ffd5bb95	cf43cad5-9a08-45fc-b381-519af9cb313d	0132a91b-16bb-4242-a924-be1ee72c9131	VENDOR_VERIFICATION_DOCUMENT	S3	sports-lobby-dev	vendor-verification/0132a91b-16bb-4242-a924-be1ee72c9131/5c40669f-be84-4b3f-8d2c-6ca6ffd5bb95-license.pdf	license.pdf	application/pdf	1024	PRIVATE	PENDING_UPLOAD	2026-08-10 18:20:00.53283+00	2026-08-10 18:20:00.53283+00
+6865eadf-459f-4815-a51f-058eeb2d6641	9bb1f916-9f39-46b9-8d78-9a99feb67c19	758d535c-0367-4647-8258-9b53a776d5f8	VENDOR_VERIFICATION_DOCUMENT	S3	sports-lobby-dev	vendor-verification/758d535c-0367-4647-8258-9b53a776d5f8/6865eadf-459f-4815-a51f-058eeb2d6641-business-license.pdf	business-license.pdf	application/pdf	1024	PRIVATE	PENDING_UPLOAD	2026-08-10 18:35:20.843048+00	2026-08-10 18:35:20.843048+00
+\.
+
+
+--
+-- Data for Name: flyway_schema_history; Type: TABLE DATA; Schema: public; Owner: sports_lobby
+--
+
+COPY public.flyway_schema_history (installed_rank, version, description, type, script, checksum, installed_by, installed_on, execution_time, success) FROM stdin;
+1	1	bootstrap schema	SQL	V1__bootstrap_schema.sql	-1103769408	sports_lobby	2026-08-10 15:51:24.925329	20	t
+2	2	auth foundation	SQL	V2__auth_foundation.sql	-896564624	sports_lobby	2026-08-10 16:17:23.673523	87	t
+3	3	vendor verification	SQL	V3__vendor_verification.sql	-528423154	sports_lobby	2026-08-10 16:40:57.728091	122	t
+4	4	marketplace core	SQL	V4__marketplace_core.sql	1835327171	sports_lobby	2026-08-10 17:14:41.378246	84	t
+\.
+
+
+--
+-- Data for Name: lobbies; Type: TABLE DATA; Schema: public; Owner: sports_lobby
+--
+
+COPY public.lobbies (id, vendor_id, venue_id, court_id, sport_id, status, starts_at, ends_at, venue_timezone_snapshot, min_players, max_players, reserved_seat_count, pricing_model, currency_code, total_court_price, price_per_seat, description, cancellation_deadline_at, confirmation_deadline_at, published_at, cancelled_at, cancellation_reason_code, created_at, updated_at) FROM stdin;
+3f7044d5-eb88-431d-b777-cee39cf423f6	1fd8c5b8-a004-4801-bc41-07ce809e904b	011383db-829c-46ba-b016-1a6d1ab276fa	bf0ae1f9-9f27-4338-b5bb-26f64140d082	10000000-0000-0000-0000-000000000001	DRAFT	2026-08-11 16:59:51.714+00	2026-08-11 18:29:51.714+00	Asia/Amman	8	12	0	PRICE_PER_PLAYER	JOD	\N	5.00	Open lobby for local players.	2026-08-11 04:59:51.714+00	2026-08-11 13:59:51.714+00	\N	\N	\N	2026-08-10 16:59:51.719159+00	2026-08-10 16:59:51.719159+00
+45c189e0-a402-4bb2-a740-41383ed7ea0e	1fd8c5b8-a004-4801-bc41-07ce809e904b	f9afb1bb-c531-4c1f-9faa-65a3275c1e13	6bbf27b5-2eaf-452f-96b0-5c98f0800ba7	10000000-0000-0000-0000-000000000006	DRAFT	2026-08-11 17:00:19.335+00	2026-08-11 18:30:19.335+00	Asia/Amman	8	12	0	TOTAL_COURT_PRICE	JOD	90.00	7.50	Open lobby for local players.	2026-08-11 05:00:19.335+00	2026-08-11 14:00:19.335+00	\N	\N	\N	2026-08-10 17:00:19.339291+00	2026-08-10 17:00:19.339291+00
+a2810aeb-8d4d-4903-83e8-ea98184ce16b	758d535c-0367-4647-8258-9b53a776d5f8	c2c20a3e-e1b3-4705-a30e-27aa1c87f8b6	d9e8d208-c17d-46e3-98bf-cf18acb84aa4	10000000-0000-0000-0000-000000000001	DRAFT	2026-08-11 18:43:16.679+00	2026-08-11 20:13:16.679+00	Asia/Amman	8	12	0	TOTAL_COURT_PRICE	JOD	30.00	2.50	Open lobby for local players.	2026-08-11 06:43:16.679+00	2026-08-11 15:43:16.679+00	\N	\N	\N	2026-08-10 18:39:39.785551+00	2026-08-10 18:43:16.685935+00
+0bc82e4b-5abb-4581-bd61-038fc8c2f36a	758d535c-0367-4647-8258-9b53a776d5f8	c2c20a3e-e1b3-4705-a30e-27aa1c87f8b6	d9e8d208-c17d-46e3-98bf-cf18acb84aa4	10000000-0000-0000-0000-000000000001	OPEN	2026-08-11 18:43:19.846+00	2026-08-11 20:13:19.846+00	Asia/Amman	8	12	0	TOTAL_COURT_PRICE	JOD	30.00	2.50	Open lobby for local players.	2026-08-11 06:43:19.846+00	2026-08-11 15:43:19.846+00	2026-08-10 19:02:22.837918+00	\N	\N	2026-08-10 18:43:19.850567+00	2026-08-10 19:02:22.837918+00
+\.
+
+
+--
+-- Data for Name: otp_challenges; Type: TABLE DATA; Schema: public; Owner: sports_lobby
+--
+
+COPY public.otp_challenges (id, phone_e164, purpose, code_hash, expires_at, consumed_at, attempt_count, max_attempts, resend_available_at, requested_by_user_id, created_at) FROM stdin;
+6c4e03f8-3618-4533-81f4-dc8b1653eb0e	+962790000100	PHONE_VERIFICATION	7b7dc559196385adf379c879674ac3046026702c8b01c315ccfeda93fe48927d	2026-08-10 16:50:14.805928+00	\N	0	5	2026-08-10 16:46:14.805928+00	8dd1021b-e683-4148-80a4-729d11526622	2026-08-10 16:45:14.805928+00
+1bef2af7-1f1b-477b-bbae-5862bb0ff64d	+962790000001	PHONE_VERIFICATION	0b95c5454f10a1762f99cc3456bea88024527c21a1ce5510cc062c0bb6d55946	2026-08-10 16:59:55.270854+00	\N	0	5	2026-08-10 16:55:55.270854+00	f0b1bab2-79e4-4972-a3fd-a4f5741c7cdb	2026-08-10 16:54:55.270854+00
+f6b9264e-56a8-465c-aea9-2b577aa6052a	+962790000001	PHONE_VERIFICATION	905b8744ead689f49e338b1465ba232ced8d512ea1b0914053eac876514ae21a	2026-08-10 17:01:29.727479+00	\N	0	5	2026-08-10 16:57:29.727479+00	f0b1bab2-79e4-4972-a3fd-a4f5741c7cdb	2026-08-10 16:56:29.727479+00
+af5225ad-0071-433e-82c2-53c550ef8788	+9627710561613	PHONE_VERIFICATION	031db8ea77696ace8b8455e8b698803e2a8344428feb752f424271f992d3c6a6	2026-08-10 17:59:43.903469+00	\N	0	5	2026-08-10 17:55:43.903469+00	f5ad1d05-10d8-430e-8bff-5fc2309095b8	2026-08-10 17:54:43.903469+00
+7216d093-a4e3-48b9-8f21-907ca64c0e47	+9627710561613	PHONE_VERIFICATION	46b97ce8351ef65b099b1dd9c2ca22606a5063950716f067ed0a40176f961738	2026-08-10 18:01:13.125898+00	\N	0	5	2026-08-10 17:57:13.125898+00	f5ad1d05-10d8-430e-8bff-5fc2309095b8	2026-08-10 17:56:13.125898+00
+a2782597-a1e6-487a-b5ef-a05d4f098c64	+962792103519	PHONE_VERIFICATION	4d221ff503376ae82daad0dbe293d0f103ec2a18bfd4eaa62542622d248b1765	2026-08-10 18:08:52.178719+00	\N	0	5	2026-08-10 18:04:52.178719+00	7fe1fc2f-38d1-4f16-a9d0-9924bf599434	2026-08-10 18:03:52.178719+00
+b194c49e-a0eb-4db9-ab23-a478d18b6fe2	+962792105538	PHONE_VERIFICATION	70cc1476f9ae594c0faea5d1254dc27d20562c06c31958a28ff62180a26e550e	2026-08-10 18:10:53.697788+00	2026-08-10 18:05:53.87511+00	0	5	2026-08-10 18:06:53.697788+00	8b82472a-c658-4cb2-9243-375c032a80fd	2026-08-10 18:05:53.697788+00
+93e9343e-7776-4d92-9ded-a6a153468700	+962792109199	PHONE_VERIFICATION	4ef5457ec280bfa88ff966ecc151e45b5285cdc5d0a6892d2e5c675fb7b84224	2026-08-10 18:14:19.418414+00	2026-08-10 18:09:19.531146+00	0	5	2026-08-10 18:10:19.418414+00	69dc78c5-5a45-45c6-ae9f-a2dc5dda9720	2026-08-10 18:09:19.418414+00
+aaf7a698-d0ae-4793-919c-9d2460c3da82	+962771056161	PHONE_VERIFICATION	516d1d456956d345a21d4ebe2e8fce2156e52eceb6fa26feeb4ff0b22742f557	2026-08-10 18:16:29.949119+00	2026-08-10 18:11:36.921594+00	0	5	2026-08-10 18:12:29.949119+00	0a3e1cbe-c2a3-43a8-a549-efae8fe41f69	2026-08-10 18:11:29.949119+00
+e5646637-2e82-4784-bf0c-0ce1467a2e0c	+962771056161	PHONE_VERIFICATION	c4d6bacfa179482616dafe56df2f5fdbe6ea955006d75c455011089bfb31141e	2026-08-10 18:01:35.841781+00	2026-08-10 18:11:36.921594+00	0	5	2026-08-10 17:57:35.841781+00	0a3e1cbe-c2a3-43a8-a549-efae8fe41f69	2026-08-10 17:56:35.841781+00
+b3edcf37-a752-4e28-a1af-8d2bea33c976	+962771056161	PHONE_VERIFICATION	8bf54f73965ce0a456082b99d5f190e99fa0e8fdde7bbd09f432b1d7480a3bd3	2026-08-10 17:37:44.979937+00	2026-08-10 18:11:36.921594+00	0	5	2026-08-10 17:33:44.979937+00	0a3e1cbe-c2a3-43a8-a549-efae8fe41f69	2026-08-10 17:32:44.979937+00
+cf8a490a-6a28-4e58-9c2f-dd3ec4a6d149	+962782120007	PHONE_VERIFICATION	8efa6bbc03b6a7f8fc4b53326e7c5a1270e047559f0e3179b2f679c1da796953	2026-08-10 18:25:00.660593+00	2026-08-10 18:20:00.745563+00	0	5	2026-08-10 18:21:00.660593+00	cf43cad5-9a08-45fc-b381-519af9cb313d	2026-08-10 18:20:00.660593+00
+574c67d3-501e-4597-a707-f8c38d065756	+962772506000	PHONE_VERIFICATION	da0f21733ee67e41a01c19bd2801b93d1391650c12e2617d25d333bd7489e5ce	2026-08-10 18:40:20.948417+00	2026-08-10 18:35:26.139637+00	0	5	2026-08-10 18:36:20.948417+00	9bb1f916-9f39-46b9-8d78-9a99feb67c19	2026-08-10 18:35:20.948417+00
+\.
+
+
+--
+-- Data for Name: password_reset_tokens; Type: TABLE DATA; Schema: public; Owner: sports_lobby
+--
+
+COPY public.password_reset_tokens (id, user_id, token_hash, expires_at, consumed_at, created_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: player_profiles; Type: TABLE DATA; Schema: public; Owner: sports_lobby
+--
+
+COPY public.player_profiles (user_id, display_name, profile_image_file_id, home_country_code, home_city, created_at, updated_at) FROM stdin;
+f0b1bab2-79e4-4972-a3fd-a4f5741c7cdb	Ahmad Saleh	\N	\N	\N	2026-08-10 16:54:55.181709+00	2026-08-10 16:54:55.181709+00
+0a3e1cbe-c2a3-43a8-a549-efae8fe41f69	mahmod faqeeh	\N	\N	\N	2026-08-10 17:32:44.893413+00	2026-08-10 17:32:44.893413+00
+f5ad1d05-10d8-430e-8bff-5fc2309095b8	mahmo faq	\N	\N	\N	2026-08-10 17:54:43.805909+00	2026-08-10 17:54:43.805909+00
+7fe1fc2f-38d1-4f16-a9d0-9924bf599434	Test User	\N	\N	\N	2026-08-10 18:03:52.05916+00	2026-08-10 18:03:52.05916+00
+8b82472a-c658-4cb2-9243-375c032a80fd	Otp Test	\N	\N	\N	2026-08-10 18:05:53.52872+00	2026-08-10 18:05:53.52872+00
+69dc78c5-5a45-45c6-ae9f-a2dc5dda9720	Otp Live	\N	\N	\N	2026-08-10 18:09:19.29576+00	2026-08-10 18:09:19.29576+00
+\.
+
+
+--
+-- Data for Name: refresh_sessions; Type: TABLE DATA; Schema: public; Owner: sports_lobby
+--
+
+COPY public.refresh_sessions (id, user_id, token_hash, device_label, expires_at, revoked_at, replaced_by_session_id, created_at, last_used_at) FROM stdin;
+959b2663-7ff8-4246-88b8-09eafcaeab55	8dd1021b-e683-4148-80a4-729d11526622	f528cf09385974d4195a2cf3e124952555599d1f0bf81ad584182c7a1e936c3c	Sports Lobby mobile	2026-09-09 16:43:24.358185+00	\N	\N	2026-08-10 16:43:24.358185+00	\N
+50f49d35-7b1e-48b9-8ab2-8f606be1fd5b	f0b1bab2-79e4-4972-a3fd-a4f5741c7cdb	1de0e10d4a92566c2bbdfaffa6c79331805ffc89fd99b0cff18d01142aa29781	Sports Lobby mobile	2026-09-09 16:54:55.273954+00	\N	\N	2026-08-10 16:54:55.273954+00	\N
+b2e7d1c6-d1be-4295-9c43-ac356df97898	f0b1bab2-79e4-4972-a3fd-a4f5741c7cdb	e767be0f783107e05f45ccb274a893a71029b8e0e3518292b8d6b07b2505f259	Sports Lobby mobile	2026-09-09 16:56:14.83106+00	2026-08-10 16:56:40.678328+00	\N	2026-08-10 16:56:14.83106+00	\N
+495a6070-6338-4c5e-acec-01db4784bf0c	64c70db5-df4b-43c9-8a86-0a9d4f052984	dacd54c2f83c4baa46ee55c2dfd414683954adfb076d049e82f95ed8700de41f	Sports Lobby mobile	2026-09-09 16:57:25.97573+00	2026-08-10 17:02:35.132613+00	\N	2026-08-10 16:57:25.97573+00	\N
+69dab81a-5a4d-4960-aa0d-8d2dbe10134e	0a3e1cbe-c2a3-43a8-a549-efae8fe41f69	4cd0ac9f8d112e40a302c7383ad9df3fb7b7a9e5787be0a05a1e3f288d05d9ad	Sports Lobby mobile	2026-09-09 17:32:44.984528+00	\N	\N	2026-08-10 17:32:44.984528+00	\N
+4ba9b556-b72e-4153-b2c4-5899cd8fd265	f5ad1d05-10d8-430e-8bff-5fc2309095b8	0b86dbbd11d82272afe2053a2ee1c9bf818bd55bc7536dfeaf0e248a4aa89afa	Sports Lobby mobile	2026-09-09 17:54:43.906772+00	\N	\N	2026-08-10 17:54:43.906772+00	\N
+3be3c6c0-1b3a-4aef-b7e0-cb94533c0578	f5ad1d05-10d8-430e-8bff-5fc2309095b8	e7e842f9b6e22c7909c6dc812f3f43acfeda467c02a7003a6cd5b7b6bc26665e	Sports Lobby mobile	2026-09-09 17:56:13.102577+00	\N	\N	2026-08-10 17:56:13.102577+00	\N
+867404cc-5b7e-4813-b544-887c83b42c92	0a3e1cbe-c2a3-43a8-a549-efae8fe41f69	91183586c01b66e49a0809a173d2b72d5658ea7229afe077c6b56b329de7422f	Sports Lobby mobile	2026-09-09 17:56:35.822816+00	\N	\N	2026-08-10 17:56:35.822816+00	\N
+087a415f-6525-4352-a270-68f71e176814	7fe1fc2f-38d1-4f16-a9d0-9924bf599434	af9c0bb4ac593fac845a30c27ffc853682dd8adac15f1170f09ca9d3368d0e22	curl	2026-09-09 18:03:52.187226+00	\N	\N	2026-08-10 18:03:52.187226+00	\N
+b5fcb17b-78c3-49ba-9574-1eac37dd5871	8b82472a-c658-4cb2-9243-375c032a80fd	45d72149a514a93de60f00db58b8d621f7028d3a51918fff0541289715cb9a3b	curl	2026-09-09 18:05:53.725586+00	\N	\N	2026-08-10 18:05:53.725586+00	\N
+a1307d83-e8dd-43f3-a3bb-5bd4c886f792	69dc78c5-5a45-45c6-ae9f-a2dc5dda9720	5a9e701aaa4f20be422c8f6aac661124ce2f5fb86d3c87f9f7993e310b89abd1	curl	2026-09-09 18:09:19.432606+00	\N	\N	2026-08-10 18:09:19.432606+00	\N
+b1b90957-7f78-47e5-9ea7-ff96a32e419c	0a3e1cbe-c2a3-43a8-a549-efae8fe41f69	a83c22be1b2d0bba5f3c810199449224470bc8d659b74cd204eacde93b5499f9	Sports Lobby mobile	2026-09-09 18:11:29.921947+00	\N	\N	2026-08-10 18:11:29.921947+00	\N
+29187389-9ea4-447f-9cd9-2a9d9c949988	0a3e1cbe-c2a3-43a8-a549-efae8fe41f69	15c252083a58ac3cd2342a629c6a26013ac3d31794013f92337d06765bad739f	Sports Lobby mobile	2026-09-09 18:11:37.033169+00	2026-08-10 18:11:57.48235+00	\N	2026-08-10 18:11:37.033169+00	\N
+04212d95-d7c3-4896-9dd3-1ddbcb7f8cfd	e23f5c89-e6d3-4d4b-ac44-d57fc411e013	608902a53952aaf395af93b307cec7ecec996cdef364adc6174a4783cbc2f5aa	Sports Lobby mobile	2026-09-09 18:14:06.00423+00	\N	\N	2026-08-10 18:14:06.00423+00	\N
+df0f9a80-4434-495a-a44b-93502a3f2572	cf43cad5-9a08-45fc-b381-519af9cb313d	e90ebf05de0c591985060c9ee7922147cce0210361e11189395c79e84dfb15b9	curl	2026-09-09 18:20:00.671697+00	\N	\N	2026-08-10 18:20:00.671697+00	\N
+630a476c-9ee3-4657-836f-9ab4423698aa	9bb1f916-9f39-46b9-8d78-9a99feb67c19	d21d0717a678c487f378c98387206925651ce723e62c7347244dba41be31a1e2	Sports Lobby mobile	2026-09-09 18:35:20.955209+00	\N	\N	2026-08-10 18:35:20.955209+00	\N
+0cec8ac5-2c11-4e7b-9b0e-601a0dce60f2	9bb1f916-9f39-46b9-8d78-9a99feb67c19	46b3cbfb986564bb0a8ec1e55ced022127ebd282cac9ed652dbf1dd339e31b51	Sports Lobby mobile	2026-09-09 18:35:26.264649+00	\N	\N	2026-08-10 18:35:26.264649+00	\N
+2c168368-f9f2-4bca-a2ba-1a1ab1ed06f4	2df71a9e-8725-412d-891c-f1f252f4fdae	08b90fd0176725317def486d29b17976c5b229569233a5e6effaf8d209d0bb69	curl-admin	2026-09-09 18:48:44.074833+00	\N	\N	2026-08-10 18:48:44.074833+00	\N
+4e1fc129-a5b3-470b-a6b8-697e918a4135	2df71a9e-8725-412d-891c-f1f252f4fdae	0df1985c7feb44fe9c75ff72a5a33306accd9875c890a34e0e890a091641ae7b	curl-admin-8080	2026-09-09 18:49:02.103326+00	\N	\N	2026-08-10 18:49:02.103326+00	\N
+2e9990f6-a482-45bf-a719-0148046ff402	2df71a9e-8725-412d-891c-f1f252f4fdae	892f00177c2f32261f286f1d88910d98f5ed63b494962b600f1345bc6ce9cfb0	Sports Lobby mobile	2026-09-09 19:00:10.606924+00	2026-08-10 19:01:42.8383+00	\N	2026-08-10 19:00:10.606924+00	\N
+9db3cf16-a618-4c39-9720-c671a17b974f	9bb1f916-9f39-46b9-8d78-9a99feb67c19	476abcf6f949f47acef66dc27b8a0bea069fac6c612ad5587e5cdc32b24037f1	Sports Lobby mobile	2026-09-09 19:01:56.693349+00	\N	\N	2026-08-10 19:01:56.693349+00	\N
+\.
+
+
+--
+-- Data for Name: reservations; Type: TABLE DATA; Schema: public; Owner: sports_lobby
+--
+
+COPY public.reservations (id, lobby_id, user_id, status, seat_count, unit_price_snapshot, currency_code_snapshot, reserved_at, cancelled_at, cancellation_actor, cancellation_reason_code, attendance_status, created_at, updated_at) FROM stdin;
+\.
+
+
+--
+-- Data for Name: sports; Type: TABLE DATA; Schema: public; Owner: sports_lobby
+--
+
+COPY public.sports (id, code, name, is_active, created_at, updated_at) FROM stdin;
+10000000-0000-0000-0000-000000000001	FOOTBALL	Football	t	2026-08-10 14:14:41.411078+00	2026-08-10 14:14:41.411078+00
+10000000-0000-0000-0000-000000000002	BASKETBALL	Basketball	t	2026-08-10 14:14:41.411078+00	2026-08-10 14:14:41.411078+00
+10000000-0000-0000-0000-000000000003	VOLLEYBALL	Volleyball	t	2026-08-10 14:14:41.411078+00	2026-08-10 14:14:41.411078+00
+10000000-0000-0000-0000-000000000004	TENNIS	Tennis	t	2026-08-10 14:14:41.411078+00	2026-08-10 14:14:41.411078+00
+10000000-0000-0000-0000-000000000005	PADEL	Padel	t	2026-08-10 14:14:41.411078+00	2026-08-10 14:14:41.411078+00
+10000000-0000-0000-0000-000000000006	BADMINTON	Badminton	t	2026-08-10 14:14:41.411078+00	2026-08-10 14:14:41.411078+00
+\.
+
+
+--
+-- Data for Name: user_roles; Type: TABLE DATA; Schema: public; Owner: sports_lobby
+--
+
+COPY public.user_roles (user_id, role, created_at) FROM stdin;
+8dd1021b-e683-4148-80a4-729d11526622	VENDOR	2026-08-10 16:43:24.231444+00
+f0b1bab2-79e4-4972-a3fd-a4f5741c7cdb	PLAYER	2026-08-10 16:54:55.181709+00
+64c70db5-df4b-43c9-8a86-0a9d4f052984	VENDOR	2026-08-10 16:57:25.879419+00
+0a3e1cbe-c2a3-43a8-a549-efae8fe41f69	PLAYER	2026-08-10 17:32:44.893413+00
+f5ad1d05-10d8-430e-8bff-5fc2309095b8	PLAYER	2026-08-10 17:54:43.805909+00
+7fe1fc2f-38d1-4f16-a9d0-9924bf599434	PLAYER	2026-08-10 18:03:52.05916+00
+8b82472a-c658-4cb2-9243-375c032a80fd	PLAYER	2026-08-10 18:05:53.52872+00
+69dc78c5-5a45-45c6-ae9f-a2dc5dda9720	PLAYER	2026-08-10 18:09:19.29576+00
+e23f5c89-e6d3-4d4b-ac44-d57fc411e013	VENDOR	2026-08-10 18:14:05.898087+00
+cf43cad5-9a08-45fc-b381-519af9cb313d	VENDOR	2026-08-10 18:20:00.527084+00
+9bb1f916-9f39-46b9-8d78-9a99feb67c19	VENDOR	2026-08-10 18:35:20.83842+00
+2df71a9e-8725-412d-891c-f1f252f4fdae	ADMIN	2026-08-10 18:48:16.60724+00
+\.
+
+
+--
+-- Data for Name: users; Type: TABLE DATA; Schema: public; Owner: sports_lobby
+--
+
+COPY public.users (id, first_name, last_name, email, phone_e164, phone_verified_at, email_verified_at, password_hash, status, preferred_locale, created_at, updated_at) FROM stdin;
+8dd1021b-e683-4148-80a4-729d11526622	Ahmad	Saleh	vendor1786380136745@example.com	+962790000100	\N	\N	$2a$10$zicRXZbIg/01/ljD844gseWaSsqLNquK62flxLTSQYs3MYNloYHHe	ACTIVE	en	2026-08-10 16:43:24.231444+00	2026-08-10 16:43:24.231444+00
+f0b1bab2-79e4-4972-a3fd-a4f5741c7cdb	Ahmad	Saleh	player1786380786454@example.com	+962790000001	\N	\N	$2a$10$XYN2nPk4TicvMzhP6T2M7.D8O1mEO6hgwR8fPUbHq3g2r7wtevab6	ACTIVE	en	2026-08-10 16:54:55.181709+00	2026-08-10 16:54:55.181709+00
+64c70db5-df4b-43c9-8a86-0a9d4f052984	Ahmad	Saleh	vendor1786381000703@example.com	+962790000101	\N	\N	$2a$10$PWUT8S0TANYBUb8c//ZWMOYxk0T2u9Ta0cf9qt/txBKc8H1XasTVW	ACTIVE	en	2026-08-10 16:57:25.879419+00	2026-08-10 16:57:25.879419+00
+f5ad1d05-10d8-430e-8bff-5fc2309095b8	mahmo	faq	mah@gm.coms	+9627710561613	\N	\N	$2a$10$O8Bom0KzY653O/nPa6T6RO56cOc4qEM0OzVq1y6yAX2QJB1RvLmgm	ACTIVE	en	2026-08-10 17:54:43.805909+00	2026-08-10 17:54:43.805909+00
+7fe1fc2f-38d1-4f16-a9d0-9924bf599434	Test	User	test1786385031@example.com	+962792103519	\N	\N	$2a$10$r8s9t3m7vJNi98pBZPlHn.g7am2DP.1MbWhY2ppH64Rgg0GFeHhvi	ACTIVE	en	2026-08-10 18:03:52.05916+00	2026-08-10 18:03:52.05916+00
+8b82472a-c658-4cb2-9243-375c032a80fd	Otp	Test	otp1786385153@example.com	+962792105538	2026-08-10 18:05:53.87511+00	\N	$2a$10$cHEmS6rQL4B7QKfbtZN3aObfTB1c7UJ2FTiPEJZyz2xf5ihavLekq	ACTIVE	en	2026-08-10 18:05:53.52872+00	2026-08-10 18:05:53.87511+00
+69dc78c5-5a45-45c6-ae9f-a2dc5dda9720	Otp	Live	otp1786385359@example.com	+962792109199	2026-08-10 18:09:19.531146+00	\N	$2a$10$YYFstJopUV9j9hpckoOYN.6NrkOvIA9JDobG96ZGw/YxFG03NY9F2	ACTIVE	en	2026-08-10 18:09:19.29576+00	2026-08-10 18:09:19.531146+00
+0a3e1cbe-c2a3-43a8-a549-efae8fe41f69	mahmod	faqeeh	mah@gm.com	+962771056161	2026-08-10 18:11:36.921594+00	\N	$2a$10$hVUDnYnD9HYNPRr6x3dVi.KrQqjlrMWwzxLajqWStwfDYjUuDS38G	ACTIVE	en	2026-08-10 17:32:44.893413+00	2026-08-10 18:11:36.921594+00
+e23f5c89-e6d3-4d4b-ac44-d57fc411e013	faq	mah	mah@bs.com	+962771056162	\N	\N	$2a$10$iJ.qq.iPD.LFvPlLcy19Ouwi1jo5BWc/0eRE8J0Pd8iNkkWAwLfcK	ACTIVE	en	2026-08-10 18:14:05.898087+00	2026-08-10 18:14:05.898087+00
+cf43cad5-9a08-45fc-b381-519af9cb313d	Vendor	Live	vendor1786386000@example.com	+962782120007	2026-08-10 18:20:00.745563+00	\N	$2a$10$vyv2cRmHV4vm.T8.IIEN0OV6c57hlipvgTOIYbV4mcYYAZDFM8MZy	ACTIVE	en	2026-08-10 18:20:00.527084+00	2026-08-10 18:20:00.745563+00
+9bb1f916-9f39-46b9-8d78-9a99feb67c19	rawan	taani	raw@gm.com	+962772506000	2026-08-10 18:35:26.139637+00	\N	$2a$10$sDDAe8PauzEbB6HPAUKfbuoJKbz3XNwAgDw/QT9mcRlbs90Zp670K	ACTIVE	en	2026-08-10 18:35:20.83842+00	2026-08-10 18:35:26.139637+00
+2df71a9e-8725-412d-891c-f1f252f4fdae	Admin	User	admin@sports-lobby.local	+962799999999	2026-08-10 18:48:16.603903+00	\N	$2a$10$22wI4L8x3CgtXgGTTMyuE.7dVXGeqv6mctDQ7YfQT4Wz8zX9Awr5q	ACTIVE	en	2026-08-10 18:48:16.603903+00	2026-08-10 18:48:16.603903+00
+\.
+
+
+--
+-- Data for Name: vendor_members; Type: TABLE DATA; Schema: public; Owner: sports_lobby
+--
+
+COPY public.vendor_members (vendor_id, user_id, member_role, status, created_at, updated_at) FROM stdin;
+36a1ce22-ab84-4564-a433-15ded6c97787	8dd1021b-e683-4148-80a4-729d11526622	OWNER	ACTIVE	2026-08-10 16:43:24.246846+00	2026-08-10 16:43:24.246846+00
+1fd8c5b8-a004-4801-bc41-07ce809e904b	64c70db5-df4b-43c9-8a86-0a9d4f052984	OWNER	ACTIVE	2026-08-10 16:57:25.881239+00	2026-08-10 16:57:25.881239+00
+8284518d-afa9-4b73-82fe-933d246c4d4b	e23f5c89-e6d3-4d4b-ac44-d57fc411e013	OWNER	ACTIVE	2026-08-10 18:14:05.899593+00	2026-08-10 18:14:05.899593+00
+0132a91b-16bb-4242-a924-be1ee72c9131	cf43cad5-9a08-45fc-b381-519af9cb313d	OWNER	ACTIVE	2026-08-10 18:20:00.53283+00	2026-08-10 18:20:00.53283+00
+758d535c-0367-4647-8258-9b53a776d5f8	9bb1f916-9f39-46b9-8d78-9a99feb67c19	OWNER	ACTIVE	2026-08-10 18:35:20.843048+00	2026-08-10 18:35:20.843048+00
+\.
+
+
+--
+-- Data for Name: vendor_verification_documents; Type: TABLE DATA; Schema: public; Owner: sports_lobby
+--
+
+COPY public.vendor_verification_documents (id, submission_id, file_id, document_type, created_at) FROM stdin;
+2f50d4b1-7a3f-44d6-8fdf-31d4f1e46a64	702bf5ca-f309-4149-8c38-7d7cf0c58bf4	7bac6158-b09c-420a-a698-a7cf635bbcf7	BUSINESS_LICENSE	2026-08-10 16:43:24.246846+00
+2b07e22c-6819-46a4-b97c-fb65036fd5a7	b1e2ad2d-ddf7-4f25-98c1-12233d4249b8	ec60fd02-2b28-4e43-8785-1d9f7ecd6b22	BUSINESS_LICENSE	2026-08-10 16:57:25.881239+00
+dce0bcc7-44a1-4cdc-97df-1fcb4739b331	feea9a04-a0cc-4b37-abc3-2770d7a96809	292fb845-7aba-47a8-902a-4f1b544e6410	BUSINESS_LICENSE	2026-08-10 18:14:05.899593+00
+e35a3ce3-1462-4b88-b820-ee06e5dcfbc3	8a351676-1eb0-49fc-97c7-72f7cfad707a	5c40669f-be84-4b3f-8d2c-6ca6ffd5bb95	BUSINESS_LICENSE	2026-08-10 18:20:00.53283+00
+2310a4a1-28b8-4aca-8599-d6a6b987210a	5e9531a8-bbac-42a6-9c73-f8a6423ef90c	6865eadf-459f-4815-a51f-058eeb2d6641	BUSINESS_LICENSE	2026-08-10 18:35:20.843048+00
+\.
+
+
+--
+-- Data for Name: vendor_verification_submissions; Type: TABLE DATA; Schema: public; Owner: sports_lobby
+--
+
+COPY public.vendor_verification_submissions (id, vendor_id, status, submitted_at, reviewed_at, reviewed_by_admin_user_id, decision_reason, submission_number, business_name_snapshot, contact_phone_snapshot, contact_email_snapshot, country_code_snapshot, city_snapshot, area_snapshot, address_line_snapshot, latitude_snapshot, longitude_snapshot, supported_sports_snapshot, venue_count_estimate_snapshot, opening_hours_snapshot, created_at, updated_at) FROM stdin;
+702bf5ca-f309-4149-8c38-7d7cf0c58bf4	36a1ce22-ab84-4564-a433-15ded6c97787	PENDING	2026-08-10 16:43:24.246846+00	\N	\N	\N	1	Amman Sports Club	+962790000100	vendor1786380136745@example.com	JO	Amman	Abdoun	Abdoun main street	31.950100	35.910600	Football, Basketball, Padel	1	Daily 08:00-23:00	2026-08-10 16:43:24.246846+00	2026-08-10 16:43:24.246846+00
+b1e2ad2d-ddf7-4f25-98c1-12233d4249b8	1fd8c5b8-a004-4801-bc41-07ce809e904b	PENDING	2026-08-10 16:57:25.881239+00	\N	\N	\N	1	Amman Sports Club	+962790000101	vendor1786381000703@example.com	JO	Amman	Abdoun	Abdoun main street	31.950100	35.910600	Football, Basketball, Padel	1	Daily 08:00-23:00	2026-08-10 16:57:25.881239+00	2026-08-10 16:57:25.881239+00
+feea9a04-a0cc-4b37-abc3-2770d7a96809	8284518d-afa9-4b73-82fe-933d246c4d4b	PENDING	2026-08-10 18:14:05.899593+00	\N	\N	\N	1	abdoun courts	+962771056162	mah@bs.com	JO	Amman	Amman	Amman	31.950100	35.910600	football	1	Daily 08:00-23:00	2026-08-10 18:14:05.899593+00	2026-08-10 18:14:05.899593+00
+8a351676-1eb0-49fc-97c7-72f7cfad707a	0132a91b-16bb-4242-a924-be1ee72c9131	PENDING	2026-08-10 18:20:00.53283+00	\N	\N	\N	1	Live Sports Courts	+962782120007	vendor1786386000@example.com	JO	Amman	Khalda	Main Street 1	31.953900	35.910600	Football, Padel	1	Daily 08:00-23:00	2026-08-10 18:20:00.53283+00	2026-08-10 18:20:00.53283+00
+5e9531a8-bbac-42a6-9c73-f8a6423ef90c	758d535c-0367-4647-8258-9b53a776d5f8	APPROVED	2026-08-10 18:35:20.843048+00	2026-08-10 19:01:26.398793+00	2df71a9e-8725-412d-891c-f1f252f4fdae	Documents reviewed.	1	rawan courts	+962772506000	raw@gm.com	JO	Amman	Amman	Amman	31.950100	35.910600	Football, Basketball, Padel	1	Daily 08:00-23:00	2026-08-10 18:35:20.843048+00	2026-08-10 19:01:26.398793+00
+\.
+
+
+--
+-- Data for Name: vendors; Type: TABLE DATA; Schema: public; Owner: sports_lobby
+--
+
+COPY public.vendors (id, owner_user_id, business_name, contact_phone, contact_email, country_code, city, area, address_line, latitude, longitude, supported_sports, venue_count_estimate, opening_hours, verification_status, approved_at, suspended_at, created_at, updated_at) FROM stdin;
+36a1ce22-ab84-4564-a433-15ded6c97787	8dd1021b-e683-4148-80a4-729d11526622	Amman Sports Club	+962790000100	vendor1786380136745@example.com	JO	Amman	Abdoun	Abdoun main street	31.950100	35.910600	Football, Basketball, Padel	1	Daily 08:00-23:00	PENDING	\N	\N	2026-08-10 16:43:24.246846+00	2026-08-10 16:43:24.246846+00
+1fd8c5b8-a004-4801-bc41-07ce809e904b	64c70db5-df4b-43c9-8a86-0a9d4f052984	Amman Sports Club	+962790000101	vendor1786381000703@example.com	JO	Amman	Abdoun	Abdoun main street	31.950100	35.910600	Football, Basketball, Padel	1	Daily 08:00-23:00	PENDING	\N	\N	2026-08-10 16:57:25.881239+00	2026-08-10 16:57:25.881239+00
+8284518d-afa9-4b73-82fe-933d246c4d4b	e23f5c89-e6d3-4d4b-ac44-d57fc411e013	abdoun courts	+962771056162	mah@bs.com	JO	Amman	Amman	Amman	31.950100	35.910600	football	1	Daily 08:00-23:00	PENDING	\N	\N	2026-08-10 18:14:05.899593+00	2026-08-10 18:14:05.899593+00
+0132a91b-16bb-4242-a924-be1ee72c9131	cf43cad5-9a08-45fc-b381-519af9cb313d	Live Sports Courts	+962782120007	vendor1786386000@example.com	JO	Amman	Khalda	Main Street 1	31.953900	35.910600	Football, Padel	1	Daily 08:00-23:00	PENDING	\N	\N	2026-08-10 18:20:00.53283+00	2026-08-10 18:20:00.53283+00
+758d535c-0367-4647-8258-9b53a776d5f8	9bb1f916-9f39-46b9-8d78-9a99feb67c19	rawan courts	+962772506000	raw@gm.com	JO	Amman	Amman	Amman	31.950100	35.910600	Football, Basketball, Padel	1	Daily 08:00-23:00	APPROVED	2026-08-10 19:01:26.398793+00	\N	2026-08-10 18:35:20.843048+00	2026-08-10 19:01:26.398793+00
+\.
+
+
+--
+-- Data for Name: venues; Type: TABLE DATA; Schema: public; Owner: sports_lobby
+--
+
+COPY public.venues (id, vendor_id, name, description, country_code, city, area, address_line, latitude, longitude, timezone, contact_phone, status, created_at, updated_at) FROM stdin;
+da369e71-ee77-4f8a-9fe1-291f7c678aee	36a1ce22-ab84-4564-a433-15ded6c97787	Abdoun Arena	Sports venue managed from mobile.	JO	Amman	Abdoun	Abdoun main street	31.950100	35.910600	Asia/Amman	+962790000100	ACTIVE	2026-08-10 16:45:41.536462+00	2026-08-10 16:45:41.536462+00
+168bfb9f-28d0-4b17-ac9f-cf33527791e7	36a1ce22-ab84-4564-a433-15ded6c97787	Dabbouq Arena	Sports venue managed from mobile.	JO	Amman	Abdoun	Abdoun main street	31.950100	35.910600	Asia/Amman	+962790000100	ACTIVE	2026-08-10 16:46:42.887795+00	2026-08-10 16:46:42.887795+00
+f9afb1bb-c531-4c1f-9faa-65a3275c1e13	1fd8c5b8-a004-4801-bc41-07ce809e904b	Abdoun Arena	Sports venue managed from mobile.	JO	Amman	Abdoun	Abdoun main street	31.950100	35.910600	Asia/Amman	+962790000100	ACTIVE	2026-08-10 16:57:45.146382+00	2026-08-10 16:57:45.146382+00
+011383db-829c-46ba-b016-1a6d1ab276fa	1fd8c5b8-a004-4801-bc41-07ce809e904b	irbid Arena	Sports venue managed from mobile.	JO	Amman	Abdoun	Abdoun Main Street	31.950100	35.910600	Asia/Amman	+962790000101	ACTIVE	2026-08-10 16:58:00.710627+00	2026-08-10 16:58:00.710627+00
+c2c20a3e-e1b3-4705-a30e-27aa1c87f8b6	758d535c-0367-4647-8258-9b53a776d5f8	Abdoun Arena	Sports venue managed from mobile.	JO	Amman	Abdoun	Abdoun main street	31.950100	35.910600	Asia/Amman	+962790000100	ACTIVE	2026-08-10 18:38:32.333429+00	2026-08-10 18:38:32.333429+00
+\.
+
+
+--
+-- Name: admin_audit_events admin_audit_events_pkey; Type: CONSTRAINT; Schema: public; Owner: sports_lobby
+--
+
+ALTER TABLE ONLY public.admin_audit_events
+    ADD CONSTRAINT admin_audit_events_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: app_metadata app_metadata_metadata_key_key; Type: CONSTRAINT; Schema: public; Owner: sports_lobby
+--
+
+ALTER TABLE ONLY public.app_metadata
+    ADD CONSTRAINT app_metadata_metadata_key_key UNIQUE (metadata_key);
+
+
+--
+-- Name: app_metadata app_metadata_pkey; Type: CONSTRAINT; Schema: public; Owner: sports_lobby
+--
+
+ALTER TABLE ONLY public.app_metadata
+    ADD CONSTRAINT app_metadata_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: court_sports court_sports_pkey; Type: CONSTRAINT; Schema: public; Owner: sports_lobby
+--
+
+ALTER TABLE ONLY public.court_sports
+    ADD CONSTRAINT court_sports_pkey PRIMARY KEY (court_id, sport_id);
+
+
+--
+-- Name: courts courts_pkey; Type: CONSTRAINT; Schema: public; Owner: sports_lobby
+--
+
+ALTER TABLE ONLY public.courts
+    ADD CONSTRAINT courts_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: files files_object_key_key; Type: CONSTRAINT; Schema: public; Owner: sports_lobby
+--
+
+ALTER TABLE ONLY public.files
+    ADD CONSTRAINT files_object_key_key UNIQUE (object_key);
+
+
+--
+-- Name: files files_pkey; Type: CONSTRAINT; Schema: public; Owner: sports_lobby
+--
+
+ALTER TABLE ONLY public.files
+    ADD CONSTRAINT files_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: flyway_schema_history flyway_schema_history_pk; Type: CONSTRAINT; Schema: public; Owner: sports_lobby
+--
+
+ALTER TABLE ONLY public.flyway_schema_history
+    ADD CONSTRAINT flyway_schema_history_pk PRIMARY KEY (installed_rank);
+
+
+--
+-- Name: lobbies lobbies_pkey; Type: CONSTRAINT; Schema: public; Owner: sports_lobby
+--
+
+ALTER TABLE ONLY public.lobbies
+    ADD CONSTRAINT lobbies_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: otp_challenges otp_challenges_pkey; Type: CONSTRAINT; Schema: public; Owner: sports_lobby
+--
+
+ALTER TABLE ONLY public.otp_challenges
+    ADD CONSTRAINT otp_challenges_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: password_reset_tokens password_reset_tokens_pkey; Type: CONSTRAINT; Schema: public; Owner: sports_lobby
+--
+
+ALTER TABLE ONLY public.password_reset_tokens
+    ADD CONSTRAINT password_reset_tokens_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: password_reset_tokens password_reset_tokens_token_hash_key; Type: CONSTRAINT; Schema: public; Owner: sports_lobby
+--
+
+ALTER TABLE ONLY public.password_reset_tokens
+    ADD CONSTRAINT password_reset_tokens_token_hash_key UNIQUE (token_hash);
+
+
+--
+-- Name: player_profiles player_profiles_pkey; Type: CONSTRAINT; Schema: public; Owner: sports_lobby
+--
+
+ALTER TABLE ONLY public.player_profiles
+    ADD CONSTRAINT player_profiles_pkey PRIMARY KEY (user_id);
+
+
+--
+-- Name: refresh_sessions refresh_sessions_pkey; Type: CONSTRAINT; Schema: public; Owner: sports_lobby
+--
+
+ALTER TABLE ONLY public.refresh_sessions
+    ADD CONSTRAINT refresh_sessions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: refresh_sessions refresh_sessions_token_hash_key; Type: CONSTRAINT; Schema: public; Owner: sports_lobby
+--
+
+ALTER TABLE ONLY public.refresh_sessions
+    ADD CONSTRAINT refresh_sessions_token_hash_key UNIQUE (token_hash);
+
+
+--
+-- Name: reservations reservations_pkey; Type: CONSTRAINT; Schema: public; Owner: sports_lobby
+--
+
+ALTER TABLE ONLY public.reservations
+    ADD CONSTRAINT reservations_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: sports sports_code_key; Type: CONSTRAINT; Schema: public; Owner: sports_lobby
+--
+
+ALTER TABLE ONLY public.sports
+    ADD CONSTRAINT sports_code_key UNIQUE (code);
+
+
+--
+-- Name: sports sports_pkey; Type: CONSTRAINT; Schema: public; Owner: sports_lobby
+--
+
+ALTER TABLE ONLY public.sports
+    ADD CONSTRAINT sports_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: user_roles user_roles_pkey; Type: CONSTRAINT; Schema: public; Owner: sports_lobby
+--
+
+ALTER TABLE ONLY public.user_roles
+    ADD CONSTRAINT user_roles_pkey PRIMARY KEY (user_id, role);
+
+
+--
+-- Name: users users_phone_e164_key; Type: CONSTRAINT; Schema: public; Owner: sports_lobby
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_phone_e164_key UNIQUE (phone_e164);
+
+
+--
+-- Name: users users_pkey; Type: CONSTRAINT; Schema: public; Owner: sports_lobby
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: vendor_members vendor_members_pkey; Type: CONSTRAINT; Schema: public; Owner: sports_lobby
+--
+
+ALTER TABLE ONLY public.vendor_members
+    ADD CONSTRAINT vendor_members_pkey PRIMARY KEY (vendor_id, user_id);
+
+
+--
+-- Name: vendor_verification_documents vendor_verification_documents_file_unique; Type: CONSTRAINT; Schema: public; Owner: sports_lobby
+--
+
+ALTER TABLE ONLY public.vendor_verification_documents
+    ADD CONSTRAINT vendor_verification_documents_file_unique UNIQUE (file_id);
+
+
+--
+-- Name: vendor_verification_documents vendor_verification_documents_pkey; Type: CONSTRAINT; Schema: public; Owner: sports_lobby
+--
+
+ALTER TABLE ONLY public.vendor_verification_documents
+    ADD CONSTRAINT vendor_verification_documents_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: vendor_verification_submissions vendor_verification_submissions_pkey; Type: CONSTRAINT; Schema: public; Owner: sports_lobby
+--
+
+ALTER TABLE ONLY public.vendor_verification_submissions
+    ADD CONSTRAINT vendor_verification_submissions_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: vendor_verification_submissions vendor_verification_submissions_unique_number; Type: CONSTRAINT; Schema: public; Owner: sports_lobby
+--
+
+ALTER TABLE ONLY public.vendor_verification_submissions
+    ADD CONSTRAINT vendor_verification_submissions_unique_number UNIQUE (vendor_id, submission_number);
+
+
+--
+-- Name: vendors vendors_owner_unique; Type: CONSTRAINT; Schema: public; Owner: sports_lobby
+--
+
+ALTER TABLE ONLY public.vendors
+    ADD CONSTRAINT vendors_owner_unique UNIQUE (owner_user_id);
+
+
+--
+-- Name: vendors vendors_pkey; Type: CONSTRAINT; Schema: public; Owner: sports_lobby
+--
+
+ALTER TABLE ONLY public.vendors
+    ADD CONSTRAINT vendors_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: venues venues_pkey; Type: CONSTRAINT; Schema: public; Owner: sports_lobby
+--
+
+ALTER TABLE ONLY public.venues
+    ADD CONSTRAINT venues_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: admin_audit_events_target_idx; Type: INDEX; Schema: public; Owner: sports_lobby
+--
+
+CREATE INDEX admin_audit_events_target_idx ON public.admin_audit_events USING btree (target_type, target_id, created_at DESC);
+
+
+--
+-- Name: courts_venue_status_idx; Type: INDEX; Schema: public; Owner: sports_lobby
+--
+
+CREATE INDEX courts_venue_status_idx ON public.courts USING btree (venue_id, status);
+
+
+--
+-- Name: flyway_schema_history_s_idx; Type: INDEX; Schema: public; Owner: sports_lobby
+--
+
+CREATE INDEX flyway_schema_history_s_idx ON public.flyway_schema_history USING btree (success);
+
+
+--
+-- Name: lobbies_court_time_idx; Type: INDEX; Schema: public; Owner: sports_lobby
+--
+
+CREATE INDEX lobbies_court_time_idx ON public.lobbies USING btree (court_id, starts_at, ends_at) WHERE ((status)::text = ANY ((ARRAY['OPEN'::character varying, 'FULL'::character varying, 'CONFIRMED'::character varying, 'IN_PROGRESS'::character varying])::text[]));
+
+
+--
+-- Name: lobbies_discovery_idx; Type: INDEX; Schema: public; Owner: sports_lobby
+--
+
+CREATE INDEX lobbies_discovery_idx ON public.lobbies USING btree (status, starts_at, sport_id);
+
+
+--
+-- Name: lobbies_vendor_status_idx; Type: INDEX; Schema: public; Owner: sports_lobby
+--
+
+CREATE INDEX lobbies_vendor_status_idx ON public.lobbies USING btree (vendor_id, status);
+
+
+--
+-- Name: otp_challenges_phone_purpose_created_idx; Type: INDEX; Schema: public; Owner: sports_lobby
+--
+
+CREATE INDEX otp_challenges_phone_purpose_created_idx ON public.otp_challenges USING btree (phone_e164, purpose, created_at DESC);
+
+
+--
+-- Name: password_reset_tokens_user_created_idx; Type: INDEX; Schema: public; Owner: sports_lobby
+--
+
+CREATE INDEX password_reset_tokens_user_created_idx ON public.password_reset_tokens USING btree (user_id, created_at DESC);
+
+
+--
+-- Name: refresh_sessions_user_active_idx; Type: INDEX; Schema: public; Owner: sports_lobby
+--
+
+CREATE INDEX refresh_sessions_user_active_idx ON public.refresh_sessions USING btree (user_id, expires_at) WHERE (revoked_at IS NULL);
+
+
+--
+-- Name: reservations_lobby_status_idx; Type: INDEX; Schema: public; Owner: sports_lobby
+--
+
+CREATE INDEX reservations_lobby_status_idx ON public.reservations USING btree (lobby_id, status);
+
+
+--
+-- Name: reservations_one_active_per_user_lobby_idx; Type: INDEX; Schema: public; Owner: sports_lobby
+--
+
+CREATE UNIQUE INDEX reservations_one_active_per_user_lobby_idx ON public.reservations USING btree (lobby_id, user_id) WHERE ((status)::text = ANY ((ARRAY['RESERVED'::character varying, 'CONFIRMED'::character varying])::text[]));
+
+
+--
+-- Name: reservations_user_status_idx; Type: INDEX; Schema: public; Owner: sports_lobby
+--
+
+CREATE INDEX reservations_user_status_idx ON public.reservations USING btree (user_id, status, reserved_at DESC);
+
+
+--
+-- Name: users_email_lower_unique; Type: INDEX; Schema: public; Owner: sports_lobby
+--
+
+CREATE UNIQUE INDEX users_email_lower_unique ON public.users USING btree (lower((email)::text));
+
+
+--
+-- Name: vendor_verification_submissions_vendor_idx; Type: INDEX; Schema: public; Owner: sports_lobby
+--
+
+CREATE INDEX vendor_verification_submissions_vendor_idx ON public.vendor_verification_submissions USING btree (vendor_id, submission_number DESC);
+
+
+--
+-- Name: vendors_status_idx; Type: INDEX; Schema: public; Owner: sports_lobby
+--
+
+CREATE INDEX vendors_status_idx ON public.vendors USING btree (verification_status);
+
+
+--
+-- Name: venues_city_status_idx; Type: INDEX; Schema: public; Owner: sports_lobby
+--
+
+CREATE INDEX venues_city_status_idx ON public.venues USING btree (city, status);
+
+
+--
+-- Name: venues_vendor_status_idx; Type: INDEX; Schema: public; Owner: sports_lobby
+--
+
+CREATE INDEX venues_vendor_status_idx ON public.venues USING btree (vendor_id, status);
+
+
+--
+-- Name: admin_audit_events admin_audit_events_actor_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sports_lobby
+--
+
+ALTER TABLE ONLY public.admin_audit_events
+    ADD CONSTRAINT admin_audit_events_actor_user_id_fkey FOREIGN KEY (actor_user_id) REFERENCES public.users(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: court_sports court_sports_court_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sports_lobby
+--
+
+ALTER TABLE ONLY public.court_sports
+    ADD CONSTRAINT court_sports_court_id_fkey FOREIGN KEY (court_id) REFERENCES public.courts(id) ON DELETE CASCADE;
+
+
+--
+-- Name: court_sports court_sports_sport_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sports_lobby
+--
+
+ALTER TABLE ONLY public.court_sports
+    ADD CONSTRAINT court_sports_sport_id_fkey FOREIGN KEY (sport_id) REFERENCES public.sports(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: courts courts_venue_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sports_lobby
+--
+
+ALTER TABLE ONLY public.courts
+    ADD CONSTRAINT courts_venue_id_fkey FOREIGN KEY (venue_id) REFERENCES public.venues(id) ON DELETE CASCADE;
+
+
+--
+-- Name: files files_owner_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sports_lobby
+--
+
+ALTER TABLE ONLY public.files
+    ADD CONSTRAINT files_owner_user_id_fkey FOREIGN KEY (owner_user_id) REFERENCES public.users(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: files files_owner_vendor_fk; Type: FK CONSTRAINT; Schema: public; Owner: sports_lobby
+--
+
+ALTER TABLE ONLY public.files
+    ADD CONSTRAINT files_owner_vendor_fk FOREIGN KEY (owner_vendor_id) REFERENCES public.vendors(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: lobbies lobbies_court_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sports_lobby
+--
+
+ALTER TABLE ONLY public.lobbies
+    ADD CONSTRAINT lobbies_court_id_fkey FOREIGN KEY (court_id) REFERENCES public.courts(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: lobbies lobbies_sport_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sports_lobby
+--
+
+ALTER TABLE ONLY public.lobbies
+    ADD CONSTRAINT lobbies_sport_id_fkey FOREIGN KEY (sport_id) REFERENCES public.sports(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: lobbies lobbies_vendor_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sports_lobby
+--
+
+ALTER TABLE ONLY public.lobbies
+    ADD CONSTRAINT lobbies_vendor_id_fkey FOREIGN KEY (vendor_id) REFERENCES public.vendors(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: lobbies lobbies_venue_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sports_lobby
+--
+
+ALTER TABLE ONLY public.lobbies
+    ADD CONSTRAINT lobbies_venue_id_fkey FOREIGN KEY (venue_id) REFERENCES public.venues(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: otp_challenges otp_challenges_requested_by_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sports_lobby
+--
+
+ALTER TABLE ONLY public.otp_challenges
+    ADD CONSTRAINT otp_challenges_requested_by_user_id_fkey FOREIGN KEY (requested_by_user_id) REFERENCES public.users(id) ON DELETE SET NULL;
+
+
+--
+-- Name: password_reset_tokens password_reset_tokens_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sports_lobby
+--
+
+ALTER TABLE ONLY public.password_reset_tokens
+    ADD CONSTRAINT password_reset_tokens_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: player_profiles player_profiles_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sports_lobby
+--
+
+ALTER TABLE ONLY public.player_profiles
+    ADD CONSTRAINT player_profiles_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: refresh_sessions refresh_sessions_replaced_by_session_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sports_lobby
+--
+
+ALTER TABLE ONLY public.refresh_sessions
+    ADD CONSTRAINT refresh_sessions_replaced_by_session_id_fkey FOREIGN KEY (replaced_by_session_id) REFERENCES public.refresh_sessions(id);
+
+
+--
+-- Name: refresh_sessions refresh_sessions_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sports_lobby
+--
+
+ALTER TABLE ONLY public.refresh_sessions
+    ADD CONSTRAINT refresh_sessions_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: reservations reservations_lobby_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sports_lobby
+--
+
+ALTER TABLE ONLY public.reservations
+    ADD CONSTRAINT reservations_lobby_id_fkey FOREIGN KEY (lobby_id) REFERENCES public.lobbies(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: reservations reservations_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sports_lobby
+--
+
+ALTER TABLE ONLY public.reservations
+    ADD CONSTRAINT reservations_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: user_roles user_roles_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sports_lobby
+--
+
+ALTER TABLE ONLY public.user_roles
+    ADD CONSTRAINT user_roles_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: vendor_members vendor_members_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sports_lobby
+--
+
+ALTER TABLE ONLY public.vendor_members
+    ADD CONSTRAINT vendor_members_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: vendor_members vendor_members_vendor_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sports_lobby
+--
+
+ALTER TABLE ONLY public.vendor_members
+    ADD CONSTRAINT vendor_members_vendor_id_fkey FOREIGN KEY (vendor_id) REFERENCES public.vendors(id) ON DELETE CASCADE;
+
+
+--
+-- Name: vendor_verification_documents vendor_verification_documents_file_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sports_lobby
+--
+
+ALTER TABLE ONLY public.vendor_verification_documents
+    ADD CONSTRAINT vendor_verification_documents_file_id_fkey FOREIGN KEY (file_id) REFERENCES public.files(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: vendor_verification_documents vendor_verification_documents_submission_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sports_lobby
+--
+
+ALTER TABLE ONLY public.vendor_verification_documents
+    ADD CONSTRAINT vendor_verification_documents_submission_id_fkey FOREIGN KEY (submission_id) REFERENCES public.vendor_verification_submissions(id) ON DELETE CASCADE;
+
+
+--
+-- Name: vendor_verification_submissions vendor_verification_submissions_reviewed_by_admin_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sports_lobby
+--
+
+ALTER TABLE ONLY public.vendor_verification_submissions
+    ADD CONSTRAINT vendor_verification_submissions_reviewed_by_admin_user_id_fkey FOREIGN KEY (reviewed_by_admin_user_id) REFERENCES public.users(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: vendor_verification_submissions vendor_verification_submissions_vendor_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sports_lobby
+--
+
+ALTER TABLE ONLY public.vendor_verification_submissions
+    ADD CONSTRAINT vendor_verification_submissions_vendor_id_fkey FOREIGN KEY (vendor_id) REFERENCES public.vendors(id) ON DELETE CASCADE;
+
+
+--
+-- Name: vendors vendors_owner_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sports_lobby
+--
+
+ALTER TABLE ONLY public.vendors
+    ADD CONSTRAINT vendors_owner_user_id_fkey FOREIGN KEY (owner_user_id) REFERENCES public.users(id) ON DELETE RESTRICT;
+
+
+--
+-- Name: venues venues_vendor_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: sports_lobby
+--
+
+ALTER TABLE ONLY public.venues
+    ADD CONSTRAINT venues_vendor_id_fkey FOREIGN KEY (vendor_id) REFERENCES public.vendors(id) ON DELETE RESTRICT;
+
+
+--
+-- PostgreSQL database dump complete
+--
+
+\unrestrict esJn2U06TNQXpLfefppR5gY15Xjgr2JQRuzJyTdTXOOZwIQVrxgfQhIi3hfviel
+

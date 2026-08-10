@@ -1,0 +1,220 @@
+Sports Lobby App - Chat Handoff Summary
+Date: 2026-08-10
+
+IMPORTANT
+This file contains local development credentials and setup notes.
+Do not commit real production secrets or real user data to GitHub.
+
+
+PROJECT LOCATION
+/Users/alfaqeh/Desktop/native/sports-lobby-app/sports-lobby-docs
+
+
+STACK
+- Backend: Spring Boot modular monolith
+- Database: PostgreSQL running in Docker
+- Mobile: React Native 0.86.2 with TypeScript
+- API style: REST under /api/v1
+
+
+DATABASE
+Postgres runs through Docker Compose from:
+backend/docker-compose.yml
+
+Start database:
+cd /Users/alfaqeh/Desktop/native/sports-lobby-app/sports-lobby-docs/backend
+docker compose up -d postgres
+
+Run migrations:
+mvn flyway:migrate
+
+Local data is stored in the Docker volume:
+sports_lobby_postgres
+
+GitHub does not move this database data. To move exact local data to another PC,
+dump and restore the database manually:
+
+On old machine:
+cd /Users/alfaqeh/Desktop/native/sports-lobby-app/sports-lobby-docs/backend
+docker compose exec postgres pg_dump -U sports_lobby -d sports_lobby > sports_lobby_dump.sql
+
+On new machine:
+docker compose up -d postgres
+cat sports_lobby_dump.sql | docker compose exec -T postgres psql -U sports_lobby -d sports_lobby
+
+
+RUN BACKEND
+cd /Users/alfaqeh/Desktop/native/sports-lobby-app/sports-lobby-docs/backend
+docker compose up -d postgres
+mvn spring-boot:run
+
+Backend URL:
+http://localhost:8080
+
+
+RUN MOBILE
+cd /Users/alfaqeh/Desktop/native/sports-lobby-app/sports-lobby-docs/mobile
+npm install
+npm start
+
+Then in another terminal:
+npm run ios
+
+or:
+npm run android
+
+Android emulator uses:
+http://10.0.2.2:8080/api/v1
+
+iOS simulator uses:
+http://localhost:8080/api/v1
+
+
+LOCAL DEV ACCOUNTS
+
+Admin account:
+Phone: +962799999999
+Password: Admin123!
+Email: admin@sports-lobby.local
+Role: ADMIN
+Phone verified: yes
+
+Use this account in the mobile login screen. After login, the Admin tab appears
+and can approve/reject pending vendors.
+
+OTP test code:
+999999
+
+The test OTP works only after an OTP challenge exists. Normal flow:
+1. Sign up as player or vendor.
+2. App opens phone confirmation.
+3. Enter 999999.
+
+It will not verify a random phone number that never signed up or requested OTP.
+
+
+AUTHENTICATION WORK DONE
+- Player registration
+- Phone/password login
+- OTP phone verification
+- Access tokens
+- Refresh tokens
+- Logout
+- Forgot/reset password foundation
+- Dismissible alert/error cards in mobile
+- Phone country-code selector with Jordan as default
+- Test OTP backdoor: 999999
+- Twilio SMS adapter added behind environment config
+
+Twilio SMS env variables:
+SPORTS_LOBBY_TWILIO_ENABLED=true
+TWILIO_ACCOUNT_SID=...
+TWILIO_AUTH_TOKEN=...
+TWILIO_FROM_NUMBER=...
+
+Alternative:
+TWILIO_MESSAGING_SERVICE_SID=...
+
+
+VENDOR WORK DONE
+- Vendor signup
+- Vendor business info
+- Verification document upload metadata and signed upload abstraction
+- Vendor verification status starts as PENDING
+- Admin approve/reject endpoints
+- Admin audit event for approval/rejection
+- Non-approved vendors are blocked from publishing lobbies
+- Vendor signup now creates phone OTP challenge, so 999999 works for vendor signup too
+
+
+SPORTS / VENUES / COURTS / LOBBIES WORK DONE
+- Seeded sports catalog:
+  - Football
+  - Basketball
+  - Volleyball
+  - Tennis
+  - Padel
+  - Badminton
+- Vendor venue creation
+- Court creation
+- Court supported sports
+- Lobby create/edit draft/publish
+- Lobby min/max players
+- Pricing model
+- Start/end time
+- Cancellation/confirmation deadline fields
+- Lobby statuses
+- Publish guard checks vendor approval and court sport support
+
+
+RESERVATIONS WORK DONE
+- Join lobby
+- Cancel reservation
+- My reservations endpoint
+- Capacity-safe reservation logic
+- Reservation concurrency test requirement implemented:
+  when final seat has multiple simultaneous join attempts, exactly one succeeds
+
+
+MOBILE UI WORK DONE
+- Real login screen
+- Player signup screen
+- Vendor signup screen
+- Forced phone confirmation after signup
+- Vendor signup sports picker now uses saved sports values instead of free text
+- Default sports show immediately, then backend sports catalog refreshes in background
+- Vendor workspace for vendor status, venues, courts, lobbies
+- Explore screen for lobbies
+- Bookings screen
+- Admin review screen for approving/rejecting vendors
+- Profile/logout screen
+- Centralized API client and session handling
+- Reusable components:
+  - AppButton
+  - AppTextField
+  - Notice
+  - PhoneNumberField
+  - MultiSelectChips
+  - FormSection
+  - LobbyCard
+  - VenueCard
+  - ReservationCard
+
+
+ADMIN BOOTSTRAP
+There is no public "create admin" endpoint, intentionally.
+Admin is created through backend bootstrap configuration.
+
+Environment variables:
+SPORTS_LOBBY_ADMIN_BOOTSTRAP_ENABLED=true
+SPORTS_LOBBY_ADMIN_EMAIL=admin@sports-lobby.local
+SPORTS_LOBBY_ADMIN_PHONE_E164=+962799999999
+SPORTS_LOBBY_ADMIN_PASSWORD=Admin123!
+
+The bootstrap can create or update the admin account and add the ADMIN role.
+It should be used only for local/dev setup.
+
+
+COMMON TEST COMMANDS
+
+Backend:
+cd /Users/alfaqeh/Desktop/native/sports-lobby-app/sports-lobby-docs/backend
+DEBUG=false mvn test -Dtest='!ReservationConcurrencyTests'
+
+Mobile:
+cd /Users/alfaqeh/Desktop/native/sports-lobby-app/sports-lobby-docs/mobile
+npm run typecheck
+npm run lint
+npm test -- --runInBand
+
+Reservation concurrency test needs Docker/Testcontainers available.
+
+
+IMPORTANT CURRENT NOTES
+- The backend is authoritative for roles, permissions, publishing, capacity, and prices.
+- The mobile app must never be trusted for vendor approval, lobby capacity, or reservation success.
+- Real SMS is not active unless Twilio env variables are configured.
+- Vendor approval is required before publishing public lobbies.
+- If a lobby publish fails with "court does not support this sport", make sure the selected court has that sport enabled.
+- If mobile cannot reach backend on Android, use 10.0.2.2 instead of localhost. The API client already does this.
+
