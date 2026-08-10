@@ -1,0 +1,58 @@
+spring:
+  application:
+    name: sports-lobby-backend
+  datasource:
+    url: ${SPORTS_LOBBY_DB_URL:jdbc:postgresql://localhost:5432/sports_lobby}
+    username: ${SPORTS_LOBBY_DB_USER:sports_lobby}
+    password: ${SPORTS_LOBBY_DB_PASSWORD:sports_lobby_dev}
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+server:
+  port: ${PORT:8080}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+app:
+  api:
+    request-id-header: X-Request-Id
+  auth:
+    access-token-secret: ${SPORTS_LOBBY_ACCESS_TOKEN_SECRET:dev-only-change-me-dev-only-change-me-32}
+    access-token-ttl: ${SPORTS_LOBBY_ACCESS_TOKEN_TTL:15m}
+    refresh-token-ttl: ${SPORTS_LOBBY_REFRESH_TOKEN_TTL:30d}
+    otp:
+      ttl: ${SPORTS_LOBBY_OTP_TTL:5m}
+      resend-cooldown: ${SPORTS_LOBBY_OTP_RESEND_COOLDOWN:60s}
+      max-attempts: ${SPORTS_LOBBY_OTP_MAX_ATTEMPTS:5}
+    password-reset:
+      ttl: ${SPORTS_LOBBY_PASSWORD_RESET_TTL:15m}
+  sms:
+    twilio:
+      enabled: ${SPORTS_LOBBY_TWILIO_ENABLED:false}
+      account-sid: ${TWILIO_ACCOUNT_SID:}
+      auth-token: ${TWILIO_AUTH_TOKEN:}
+      from-number: ${TWILIO_FROM_NUMBER:}
+      messaging-service-sid: ${TWILIO_MESSAGING_SERVICE_SID:}
+  admin:
+    bootstrap:
+      enabled: ${SPORTS_LOBBY_ADMIN_BOOTSTRAP_ENABLED:false}
+      first-name: ${SPORTS_LOBBY_ADMIN_FIRST_NAME:Admin}
+      last-name: ${SPORTS_LOBBY_ADMIN_LAST_NAME:User}
+      email: ${SPORTS_LOBBY_ADMIN_EMAIL:}
+      phone-e164: ${SPORTS_LOBBY_ADMIN_PHONE_E164:}
+      password: ${SPORTS_LOBBY_ADMIN_PASSWORD:}
+  files:
+    bucket: ${SPORTS_LOBBY_FILES_BUCKET:sports-lobby-dev}
+    vendor-verification-prefix: ${SPORTS_LOBBY_VENDOR_VERIFICATION_PREFIX:vendor-verification}
+    signed-upload-ttl: ${SPORTS_LOBBY_SIGNED_UPLOAD_TTL:10m}
+    signed-download-ttl: ${SPORTS_LOBBY_SIGNED_DOWNLOAD_TTL:5m}
+    max-vendor-verification-document-bytes: ${SPORTS_LOBBY_VENDOR_DOC_MAX_BYTES:10485760}

@@ -1,0 +1,15 @@
+package com.sportslobby.common.api;
+
+public enum ApiErrorCode {
+    VALIDATION_ERROR,
+    UNAUTHENTICATED,
+    FORBIDDEN,
+    RESOURCE_NOT_FOUND,
+    RATE_LIMITED,
+    VENDOR_NOT_APPROVED,
+    LOBBY_NOT_JOINABLE,
+    LOBBY_FULL,
+    ALREADY_RESERVED,
+    CONFLICT,
+    INTERNAL_ERROR
+}
