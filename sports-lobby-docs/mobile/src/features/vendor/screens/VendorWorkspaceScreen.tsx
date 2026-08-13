@@ -15,7 +15,7 @@ import {
 import {apiClient} from '../../../services/api/apiClient';
 import {AuthenticatedSession} from '../../../services/session/sessionTypes';
 import {colors, radii, spacing, typography} from '../../../theme/tokens';
-import {showError} from '../../auth/screens/AuthScreen';
+import {showError} from '../../auth/utils/authErrors';
 import {Court, Lobby, SaveLobbyRequest, courtsApi, lobbiesApi} from '../../lobbies/api';
 import {Sport, sportsApi} from '../../sports/api';
 import {Venue, venuesApi} from '../../venues/api';

@@ -1,6 +1,6 @@
 import React from 'react';
-import {Pressable, StyleSheet, Text, View} from 'react-native';
-import {colors, radii, spacing, typography} from '../../theme/tokens';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { colors, radii, spacing, typography } from '../../theme/tokens';
 
 export type MultiSelectOption = {
   key: string;
@@ -13,6 +13,8 @@ type MultiSelectChipsProps = {
   selectedKeys: string[];
   onChange: (selectedKeys: string[]) => void;
   emptyText?: string;
+  errorText?: string;
+  onBlur?: () => void;
 };
 
 export function MultiSelectChips({
@@ -21,6 +23,8 @@ export function MultiSelectChips({
   selectedKeys,
   onChange,
   emptyText = 'No options available',
+  errorText,
+  onBlur,
 }: MultiSelectChipsProps): React.JSX.Element {
   const selected = new Set(selectedKeys);
 
@@ -35,22 +39,37 @@ export function MultiSelectChips({
   return (
     <View style={styles.wrap}>
       <Text style={styles.label}>{label}</Text>
-      {options.length === 0 ? <Text style={styles.empty}>{emptyText}</Text> : null}
+      {options.length === 0 ? (
+        <Text style={styles.empty}>{emptyText}</Text>
+      ) : null}
       <View style={styles.chips}>
         {options.map(option => {
           const isSelected = selected.has(option.key);
           return (
             <Pressable
               accessibilityRole="checkbox"
-              accessibilityState={{checked: isSelected}}
+              accessibilityState={{ checked: isSelected }}
               key={option.key}
-              onPress={() => toggle(option.key)}
-              style={({pressed}) => [styles.chip, isSelected && styles.selectedChip, pressed && styles.pressed]}>
-              <Text style={[styles.chipText, isSelected && styles.selectedChipText]}>{option.label}</Text>
+              onPress={() => {
+                toggle(option.key);
+                onBlur?.();
+              }}
+              style={({ pressed }) => [
+                styles.chip,
+                isSelected && styles.selectedChip,
+                pressed && styles.pressed,
+              ]}
+            >
+              <Text
+                style={[styles.chipText, isSelected && styles.selectedChipText]}
+              >
+                {option.label}
+              </Text>
             </Pressable>
           );
         })}
       </View>
+      {errorText ? <Text style={styles.error}>{errorText}</Text> : null}
     </View>
   );
 }
@@ -95,5 +114,9 @@ const styles = StyleSheet.create({
   },
   selectedChipText: {
     color: colors.surface,
+  },
+  error: {
+    ...typography.caption,
+    color: colors.danger,
   },
 });
