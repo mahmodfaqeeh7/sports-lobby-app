@@ -2,11 +2,18 @@ export const colors = {
   background: '#F8FAFC',
   surface: '#FFFFFF',
   text: '#172033',
+  ink: '#071814',
   muted: '#5D6B82',
   border: '#D8DEE8',
   accent: '#087F5B',
+  brand: '#00A83B',
+  brandPressed: '#008F32',
+  brandSoft: '#EFF8F1',
+  brandBorder: '#CFE8D7',
   danger: '#C2410C',
   subtle: '#8390A3',
+  icon: '#687078',
+  divider: '#E2E5E8',
 } as const;
 
 export const spacing = {
@@ -21,6 +28,7 @@ export const spacing = {
 export const radii = {
   sm: 4,
   md: 8,
+  lg: 12,
 } as const;
 
 export const typography = {

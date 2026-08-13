@@ -1,51 +1,33 @@
-import React, { ReactNode, useState } from 'react';
-import {
-  KeyboardTypeOptions,
-  StyleSheet,
-  Text,
-  TextInput,
-  TextInputProps,
-  View,
-} from 'react-native';
+import React, { useState } from 'react';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import Eye from 'lucide-react-native/icons/eye';
+import EyeOff from 'lucide-react-native/icons/eye-off';
+import LockKeyhole from 'lucide-react-native/icons/lock-keyhole';
+import { FieldAppearance } from '../atoms/AppTextField';
 import { colors, radii, spacing, typography } from '../../theme/tokens';
 
-export type FieldAppearance = 'default' | 'auth';
-
-export type AppTextFieldProps = {
+type PasswordFieldProps = {
   label: string;
   value: string;
   onChangeText: (value: string) => void;
   placeholder?: string;
-  secureTextEntry?: boolean;
-  keyboardType?: KeyboardTypeOptions;
-  multiline?: boolean;
   errorText?: string;
-  autoCapitalize?: TextInputProps['autoCapitalize'];
-  maxLength?: number;
   onBlur?: () => void;
   appearance?: FieldAppearance;
   showLabel?: boolean;
-  leadingIcon?: ReactNode;
-  trailingAccessory?: ReactNode;
 };
 
-export function AppTextField({
+export function PasswordField({
   label,
   value,
   onChangeText,
   placeholder,
-  secureTextEntry = false,
-  keyboardType = 'default',
-  multiline = false,
   errorText,
-  autoCapitalize = 'none',
-  maxLength,
   onBlur,
   appearance = 'default',
   showLabel = true,
-  leadingIcon,
-  trailingAccessory,
-}: AppTextFieldProps): React.JSX.Element {
+}: PasswordFieldProps): React.JSX.Element {
+  const [visible, setVisible] = useState(false);
   const [focused, setFocused] = useState(false);
   const authAppearance = appearance === 'auth';
 
@@ -60,13 +42,12 @@ export function AppTextField({
           errorText && styles.inputError,
         ]}
       >
-        {leadingIcon}
+        {authAppearance ? (
+          <LockKeyhole color={colors.icon} size={22} strokeWidth={1.8} />
+        ) : null}
         <TextInput
           accessibilityLabel={showLabel ? undefined : label}
-          autoCapitalize={autoCapitalize}
-          keyboardType={keyboardType}
-          maxLength={maxLength}
-          multiline={multiline}
+          autoCapitalize="none"
           onBlur={() => {
             setFocused(false);
             onBlur?.();
@@ -75,15 +56,22 @@ export function AppTextField({
           onFocus={() => setFocused(true)}
           placeholder={placeholder}
           placeholderTextColor={colors.subtle}
-          secureTextEntry={secureTextEntry}
-          style={[
-            styles.input,
-            multiline && styles.multiline,
-            authAppearance && styles.authInput,
-          ]}
+          secureTextEntry={!visible}
+          style={[styles.input, authAppearance && styles.authInput]}
           value={value}
         />
-        {trailingAccessory}
+        <Pressable
+          accessibilityLabel={visible ? 'Hide password' : 'Show password'}
+          accessibilityRole="button"
+          onPress={() => setVisible(current => !current)}
+          style={styles.toggle}
+        >
+          {visible ? (
+            <EyeOff color={colors.icon} size={24} strokeWidth={1.8} />
+          ) : (
+            <Eye color={colors.icon} size={24} strokeWidth={1.8} />
+          )}
+        </Pressable>
       </View>
       {errorText ? <Text style={styles.error}>{errorText}</Text> : null}
     </View>
@@ -99,20 +87,24 @@ const styles = StyleSheet.create({
     color: colors.muted,
   },
   inputRow: {
+    alignItems: 'center',
     backgroundColor: colors.surface,
     borderColor: colors.border,
     borderRadius: radii.md,
     borderWidth: 1,
     flexDirection: 'row',
+    minHeight: 46,
   },
   authInputRow: {
-    alignItems: 'center',
     borderRadius: radii.lg,
     minHeight: 56,
-    paddingHorizontal: spacing.lg,
+    paddingLeft: spacing.lg,
   },
   focused: {
     borderColor: colors.brand,
+  },
+  inputError: {
+    borderColor: colors.danger,
   },
   input: {
     color: colors.text,
@@ -125,12 +117,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     minHeight: 54,
   },
-  multiline: {
-    minHeight: 88,
-    textAlignVertical: 'top',
-  },
-  inputError: {
-    borderColor: colors.danger,
+  toggle: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 48,
+    minWidth: 48,
   },
   error: {
     ...typography.caption,

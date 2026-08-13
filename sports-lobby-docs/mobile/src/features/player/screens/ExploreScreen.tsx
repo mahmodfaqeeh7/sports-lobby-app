@@ -7,7 +7,7 @@ import {spacing} from '../../../theme/tokens';
 import {Lobby, lobbiesApi} from '../../lobbies/api';
 import {reservationsApi} from '../../reservations/api';
 import {Sport, sportsApi} from '../../sports/api';
-import {showError} from '../../auth/screens/AuthScreen';
+import {showError} from '../../auth/utils/authErrors';
 
 type ExploreScreenProps = {
   session: AuthenticatedSession;

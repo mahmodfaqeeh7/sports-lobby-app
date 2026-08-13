@@ -4,7 +4,7 @@ import {AppButton, AppScreen, AppTextField, Badge, EmptyState, FormSection, Noti
 import {apiClient} from '../../../services/api/apiClient';
 import {AuthenticatedSession} from '../../../services/session/sessionTypes';
 import {colors, radii, spacing, typography} from '../../../theme/tokens';
-import {showError} from '../../auth/screens/AuthScreen';
+import {showError} from '../../auth/utils/authErrors';
 import {Vendor, vendorApi} from '../../vendor/api';
 
 type AdminReviewScreenProps = {

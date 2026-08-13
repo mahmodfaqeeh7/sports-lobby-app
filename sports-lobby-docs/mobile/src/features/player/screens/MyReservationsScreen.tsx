@@ -5,7 +5,7 @@ import {apiClient} from '../../../services/api/apiClient';
 import {AuthenticatedSession} from '../../../services/session/sessionTypes';
 import {spacing} from '../../../theme/tokens';
 import {Reservation, reservationsApi} from '../../reservations/api';
-import {showError} from '../../auth/screens/AuthScreen';
+import {showError} from '../../auth/utils/authErrors';
 
 type MyReservationsScreenProps = {
   session: AuthenticatedSession;

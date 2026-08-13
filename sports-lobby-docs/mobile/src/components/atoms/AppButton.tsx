@@ -1,35 +1,77 @@
-import React from 'react';
-import {Pressable, StyleSheet, Text, ViewStyle} from 'react-native';
-import {colors, radii, spacing, typography} from '../../theme/tokens';
+import React, { ReactNode } from 'react';
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  Text,
+  ViewStyle,
+} from 'react-native';
+import { colors, radii, spacing, typography } from '../../theme/tokens';
+
+export type AppButtonVariant =
+  'primary' | 'brand' | 'secondary' | 'brandOutline' | 'danger' | 'ghost';
+export type AppButtonSize = 'default' | 'large';
 
 type AppButtonProps = {
   label: string;
   onPress: () => void;
   disabled?: boolean;
-  variant?: 'primary' | 'secondary' | 'danger' | 'ghost';
+  loading?: boolean;
+  variant?: AppButtonVariant;
+  size?: AppButtonSize;
   style?: ViewStyle;
+  icon?: ReactNode;
 };
 
 export function AppButton({
   label,
   onPress,
   disabled = false,
+  loading = false,
   variant = 'primary',
+  size = 'default',
   style,
+  icon,
 }: AppButtonProps): React.JSX.Element {
+  const lightContent = variant === 'primary' || variant === 'brand';
+  const loadingColor = lightContent
+    ? colors.surface
+    : variant === 'brandOutline'
+      ? colors.brand
+      : colors.text;
+
   return (
     <Pressable
       accessibilityRole="button"
-      disabled={disabled}
+      accessibilityState={{ busy: loading, disabled: disabled || loading }}
+      disabled={disabled || loading}
       onPress={onPress}
-      style={({pressed}) => [
+      style={({ pressed }) => [
         styles.base,
         styles[variant],
-        disabled && styles.disabled,
-        pressed && !disabled && styles.pressed,
+        size === 'large' && styles.large,
+        (disabled || loading) && styles.disabled,
+        pressed && !disabled && !loading && styles.pressed,
         style,
-      ]}>
-      <Text style={[styles.label, variant !== 'primary' && styles.darkLabel]}>{label}</Text>
+      ]}
+    >
+      {loading ? (
+        <ActivityIndicator color={loadingColor} />
+      ) : (
+        <>
+          {icon}
+          <Text
+            style={[
+              styles.label,
+              !lightContent && styles.darkLabel,
+              variant === 'brandOutline' && styles.brandOutlineLabel,
+              size === 'large' && styles.largeLabel,
+            ]}
+          >
+            {label}
+          </Text>
+        </>
+      )}
     </Pressable>
   );
 }
@@ -39,6 +81,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: radii.md,
     borderWidth: 1,
+    flexDirection: 'row',
+    gap: spacing.sm,
     justifyContent: 'center',
     minHeight: 46,
     paddingHorizontal: spacing.lg,
@@ -48,9 +92,17 @@ const styles = StyleSheet.create({
     backgroundColor: colors.accent,
     borderColor: colors.accent,
   },
+  brand: {
+    backgroundColor: colors.brand,
+    borderColor: colors.brand,
+  },
   secondary: {
     backgroundColor: colors.surface,
     borderColor: colors.border,
+  },
+  brandOutline: {
+    backgroundColor: colors.surface,
+    borderColor: colors.brand,
   },
   danger: {
     backgroundColor: colors.surface,
@@ -66,11 +118,22 @@ const styles = StyleSheet.create({
   pressed: {
     opacity: 0.72,
   },
+  large: {
+    borderRadius: radii.lg,
+    minHeight: 54,
+  },
   label: {
     ...typography.button,
     color: colors.surface,
   },
   darkLabel: {
     color: colors.text,
+  },
+  brandOutlineLabel: {
+    color: colors.brand,
+  },
+  largeLabel: {
+    fontSize: 17,
+    lineHeight: 22,
   },
 });

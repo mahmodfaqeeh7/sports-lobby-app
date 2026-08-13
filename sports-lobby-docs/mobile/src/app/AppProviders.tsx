@@ -1,16 +1,21 @@
-import React, {PropsWithChildren} from 'react';
-import {StatusBar, StyleSheet, View} from 'react-native';
-import {SessionProvider} from '../services/session/SessionContext';
-import {colors} from '../theme/tokens';
+import React, { PropsWithChildren } from 'react';
+import { StatusBar, StyleSheet, View } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SessionProvider } from '../services/session/SessionContext';
+import { colors } from '../theme/tokens';
 
-export function AppProviders({children}: PropsWithChildren): React.JSX.Element {
+export function AppProviders({
+  children,
+}: PropsWithChildren): React.JSX.Element {
   return (
-    <SessionProvider>
-      <View style={styles.root}>
-        <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
-        {children}
-      </View>
-    </SessionProvider>
+    <SafeAreaProvider>
+      <SessionProvider>
+        <View style={styles.root}>
+          <StatusBar barStyle="dark-content" backgroundColor={colors.surface} />
+          {children}
+        </View>
+      </SessionProvider>
+    </SafeAreaProvider>
   );
 }
 
