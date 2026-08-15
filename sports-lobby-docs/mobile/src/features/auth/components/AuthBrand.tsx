@@ -16,11 +16,13 @@ export function AuthBrand(): React.JSX.Element {
           <Volleyball color={colors.brand} size={16} strokeWidth={2} />
         </View>
       </View>
-      <View style={styles.wordmark}>
-        <Text style={styles.wordLead}>{brand.nameLead}</Text>
-        <Text style={styles.wordAccent}>{brand.nameAccent}</Text>
+      <View style={styles.brandCopy}>
+        <View style={styles.wordmark}>
+          <Text style={styles.wordLead}>{brand.nameLead}</Text>
+          <Text style={styles.wordAccent}>{brand.nameAccent}</Text>
+        </View>
+        <Text style={styles.tagline}>{brand.tagline}</Text>
       </View>
-      <Text style={styles.tagline}>{brand.tagline}</Text>
     </View>
   );
 }
@@ -28,12 +30,19 @@ export function AuthBrand(): React.JSX.Element {
 const styles = StyleSheet.create({
   wrap: {
     alignItems: 'center',
-    gap: spacing.xs,
+    flexDirection: 'row',
+    gap: spacing.sm,
+    justifyContent: 'center',
   },
   mark: {
+    flexShrink: 0,
     height: 50,
     justifyContent: 'center',
     width: 64,
+  },
+  brandCopy: {
+    flexShrink: 1,
+    gap: spacing.xs,
   },
   markLetter: {
     color: colors.brand,

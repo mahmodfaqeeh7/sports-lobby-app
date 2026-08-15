@@ -1,6 +1,7 @@
 package com.sportslobby.auth.persistence;
 
 import com.sportslobby.auth.domain.OtpChallenge;
+import com.sportslobby.auth.domain.LegalDocumentType;
 import com.sportslobby.auth.domain.OtpPurpose;
 import com.sportslobby.auth.domain.PasswordResetToken;
 import com.sportslobby.auth.domain.RefreshSession;
@@ -24,9 +25,19 @@ public interface AuthRepository {
 
     void createPlayerProfile(UUID userId, String displayName);
 
+    void recordLegalConsent(UUID id, UUID userId, LegalDocumentType documentType, String version, Instant acceptedAt);
+
     Optional<UserAccount> findUserById(UUID userId);
 
     Optional<UserAccount> findUserByPhone(String phoneE164);
+
+    Optional<UserAccount> findUserByEmail(String email);
+
+    Optional<UserAccount> findUserByExternalIdentity(String provider, String providerSubject);
+
+    void createExternalIdentity(UUID id, UUID userId, String provider, String providerSubject, Instant now);
+
+    boolean updateUnverifiedPhone(UUID userId, String oldPhoneE164, String newPhoneE164, Instant updatedAt);
 
     void markPhoneVerified(String phoneE164, Instant verifiedAt);
 

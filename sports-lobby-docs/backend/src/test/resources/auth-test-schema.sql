@@ -1,4 +1,6 @@
 DROP TABLE IF EXISTS password_reset_tokens;
+DROP TABLE IF EXISTS external_identities;
+DROP TABLE IF EXISTS user_legal_consents;
 DROP TABLE IF EXISTS refresh_sessions;
 DROP TABLE IF EXISTS otp_challenges;
 DROP TABLE IF EXISTS player_profiles;
@@ -37,6 +39,23 @@ CREATE TABLE player_profiles (
     home_city VARCHAR(120),
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE user_legal_consents (
+    id UUID PRIMARY KEY,
+    user_id UUID NOT NULL,
+    document_type VARCHAR(30) NOT NULL,
+    document_version VARCHAR(40) NOT NULL,
+    accepted_at TIMESTAMP NOT NULL
+);
+
+CREATE TABLE external_identities (
+    id UUID PRIMARY KEY,
+    user_id UUID NOT NULL,
+    provider VARCHAR(30) NOT NULL,
+    provider_subject VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NOT NULL
 );
 
 CREATE TABLE otp_challenges (

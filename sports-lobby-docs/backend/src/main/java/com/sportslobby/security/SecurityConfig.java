@@ -7,6 +7,7 @@ import com.sportslobby.common.web.RequestIdFilter;
 import java.util.Map;
 import org.slf4j.MDC;
 import org.springframework.context.annotation.Bean;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
@@ -29,8 +30,12 @@ public class SecurityConfig {
     SecurityFilterChain securityFilterChain(
         HttpSecurity http,
         BearerTokenAuthenticationFilter bearerTokenFilter,
-        ObjectMapper objectMapper
+        ObjectMapper objectMapper,
+        @Value("${app.security.require-https:false}") boolean requireHttps
     ) throws Exception {
+        if (requireHttps) {
+            http.requiresChannel(channels -> channels.anyRequest().requiresSecure());
+        }
         return http
             .csrf(AbstractHttpConfigurer::disable)
             .cors(Customizer.withDefaults())
@@ -41,6 +46,8 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/v1/lobbies").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/auth/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/vendors/signup").permitAll()
+                .requestMatchers(HttpMethod.PUT, "/api/v1/files/local/uploads/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/files/local/downloads/**").permitAll()
                 .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.GET, "/actuator/health/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/actuator/info").permitAll()

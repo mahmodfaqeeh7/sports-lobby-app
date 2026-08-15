@@ -15,14 +15,20 @@ Do not expose persistence entities directly.
 ```text
 POST   /api/v1/auth/register
 POST   /api/v1/auth/login
+POST   /api/v1/auth/google
 POST   /api/v1/auth/otp/request
 POST   /api/v1/auth/otp/verify
 POST   /api/v1/auth/refresh
 POST   /api/v1/auth/logout
 POST   /api/v1/auth/password/forgot
 POST   /api/v1/auth/password/reset
+PATCH  /api/v1/me/unverified-phone
 POST   /api/v1/vendors/signup
 GET    /api/v1/vendor/me
+GET    /api/v1/vendor/kyc
+POST   /api/v1/vendor/verification/resubmit
+POST   /api/v1/vendor/verification-documents/{fileId}/upload-url
+POST   /api/v1/vendor/verification-documents/{fileId}/complete
 GET    /api/v1/vendor/verification-documents/{fileId}/download
 
 GET    /api/v1/sports
@@ -43,6 +49,8 @@ POST   /api/v1/vendor/reservations/{id}/attendance
 GET    /api/v1/admin/vendors/pending
 POST   /api/v1/admin/vendors/{id}/approve
 POST   /api/v1/admin/vendors/{id}/reject
+POST   /api/v1/admin/vendors/{id}/suspend
+POST   /api/v1/admin/vendors/{id}/reactivate
 GET    /api/v1/admin/vendors/verification-documents/{fileId}/download
 ```
 

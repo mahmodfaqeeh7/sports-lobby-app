@@ -8,13 +8,23 @@ import org.springframework.validation.annotation.Validated;
 @Validated
 @ConfigurationProperties(prefix = "app.files")
 public record FileStorageProperties(
+    @NotBlank String provider,
     @NotBlank String bucket,
     String vendorVerificationPrefix,
     Duration signedUploadTtl,
     Duration signedDownloadTtl,
-    long maxVendorVerificationDocumentBytes
+    long maxVendorVerificationDocumentBytes,
+    String localBaseUrl,
+    String localStoragePath
 ) {
     public FileStorageProperties {
+        if (provider == null || provider.isBlank()) {
+            provider = "local";
+        }
+        provider = provider.trim().toLowerCase();
+        if (!provider.equals("local") && !provider.equals("s3")) {
+            throw new IllegalArgumentException("app.files.provider must be 'local' or 's3'.");
+        }
         if (vendorVerificationPrefix == null || vendorVerificationPrefix.isBlank()) {
             vendorVerificationPrefix = "vendor-verification";
         }
@@ -25,7 +35,13 @@ public record FileStorageProperties(
             signedDownloadTtl = Duration.ofMinutes(5);
         }
         if (maxVendorVerificationDocumentBytes <= 0) {
-            maxVendorVerificationDocumentBytes = 10 * 1024 * 1024;
+            maxVendorVerificationDocumentBytes = 5 * 1024 * 1024;
+        }
+        if (localBaseUrl == null || localBaseUrl.isBlank()) {
+            localBaseUrl = "http://localhost:8080";
+        }
+        if (localStoragePath == null || localStoragePath.isBlank()) {
+            localStoragePath = ".local-object-storage";
         }
     }
 }

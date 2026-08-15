@@ -1,0 +1,5 @@
+module.exports = {
+  API_BASE_URL: '',
+  GOOGLE_WEB_CLIENT_ID: '',
+  GOOGLE_IOS_CLIENT_ID: '',
+};

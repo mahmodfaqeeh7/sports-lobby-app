@@ -16,8 +16,9 @@ import { apiClient } from '../../../services/api/apiClient';
 import { AuthenticatedSession } from '../../../services/session/sessionTypes';
 import { colors, spacing } from '../../../theme/tokens';
 import { AuthBrand } from '../components/AuthBrand';
+import { LegalConsentField } from '../components/LegalConsentField';
 import { AuthPromptLink } from '../components/AuthPromptLink';
-import { authApi } from '../api';
+import { authApi, toSession } from '../api';
 import { AuthView, PhoneVerificationContext } from '../types';
 import { NoticeState, showError } from '../utils/authErrors';
 import {
@@ -35,6 +36,8 @@ type PlayerSignupFormValues = {
   phone: PhoneFieldValue;
   password: string;
   confirmPassword: string;
+  acceptedTerms: boolean;
+  acceptedPrivacy: boolean;
 };
 
 const fieldIconProps = {
@@ -110,6 +113,22 @@ const PLAYER_SIGNUP_FIELDS: FormBuilderField<PlayerSignupFormValues>[] = [
         value === formValues.password || 'Passwords do not match.',
     },
   },
+  {
+    type: 'custom',
+    name: 'acceptedTerms',
+    rules: {validate: value => value === true || 'Accept the Terms of Service to continue.'},
+    render: ({field, fieldState}) => (
+      <LegalConsentField document="terms" accepted={field.value === true} onChange={field.onChange} onBlur={field.onBlur} errorText={fieldState.error?.message} />
+    ),
+  },
+  {
+    type: 'custom',
+    name: 'acceptedPrivacy',
+    rules: {validate: value => value === true || 'Accept the Privacy Policy to continue.'},
+    render: ({field, fieldState}) => (
+      <LegalConsentField document="privacy" accepted={field.value === true} onChange={field.onChange} onBlur={field.onBlur} errorText={fieldState.error?.message} />
+    ),
+  },
 ];
 
 const DEFAULT_VALUES: PlayerSignupFormValues = {
@@ -119,6 +138,8 @@ const DEFAULT_VALUES: PlayerSignupFormValues = {
   phone: { countryCode: '+962', nationalNumber: '' },
   password: '',
   confirmPassword: '',
+  acceptedTerms: false,
+  acceptedPrivacy: false,
 };
 
 type PlayerSignupScreenProps = {
@@ -143,6 +164,8 @@ export function PlayerSignupScreen({
     email,
     phone,
     password,
+    acceptedTerms,
+    acceptedPrivacy,
   }: PlayerSignupFormValues) => {
     setBusy(true);
     setNotice({});
@@ -155,19 +178,18 @@ export function PlayerSignupScreen({
         phoneE164,
         password,
         deviceLabel: 'Sports Lobby mobile',
+        acceptedTerms,
+        acceptedPrivacy,
       });
       setVerificationContext({
         phoneE164: response.user.phoneE164,
         password,
         title: 'Account created',
         otpAlreadySent: true,
+        accessToken: response.tokens.accessToken,
+        pendingSession: toSession(response),
       });
       setActiveStep(1);
-      setNotice({
-        title: 'Account created',
-        message: 'Enter the verification code sent to your phone.',
-        tone: 'success',
-      });
     } catch (error) {
       showError(error, setNotice);
     } finally {

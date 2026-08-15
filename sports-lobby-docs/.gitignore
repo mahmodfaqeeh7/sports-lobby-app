@@ -11,6 +11,7 @@
 
 # Backend
 backend/target/
+backend/.local-object-storage/
 
 # Mobile
 mobile/node_modules/

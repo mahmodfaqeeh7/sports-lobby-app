@@ -1,7 +1,11 @@
 package com.sportslobby.files.application;
 
-public interface ObjectStorageService {
-    SignedUpload createSignedUpload(String bucketName, String objectKey, String contentType, long sizeBytes);
+import java.util.UUID;
 
-    SignedDownload createSignedDownload(String bucketName, String objectKey);
+public interface ObjectStorageService {
+    SignedUpload createSignedUpload(UUID fileId, String bucketName, String objectKey, String contentType, long sizeBytes);
+
+    SignedDownload createSignedDownload(String bucketName, String objectKey, String contentType, String fileName);
+
+    boolean uploadExists(String bucketName, String objectKey, String contentType, long sizeBytes);
 }

@@ -47,6 +47,32 @@ public class AdminVendorController {
         return VendorResponse.from(vendorService.rejectVendor(vendorId, adminUser, request.reason()));
     }
 
+    @GetMapping("/{vendorId}/review")
+    public AdminVendorReviewResponse review(
+        @PathVariable UUID vendorId,
+        @AuthenticationPrincipal AuthenticatedUser adminUser
+    ) {
+        return AdminVendorReviewResponse.from(vendorService.getAdminReview(vendorId, adminUser));
+    }
+
+    @PostMapping("/{vendorId}/suspend")
+    public VendorResponse suspend(
+        @PathVariable UUID vendorId,
+        @Valid @RequestBody AdminVendorDecisionRequest request,
+        @AuthenticationPrincipal AuthenticatedUser adminUser
+    ) {
+        return VendorResponse.from(vendorService.suspendVendor(vendorId, adminUser, request.reason()));
+    }
+
+    @PostMapping("/{vendorId}/reactivate")
+    public VendorResponse reactivate(
+        @PathVariable UUID vendorId,
+        @Valid @RequestBody AdminVendorDecisionRequest request,
+        @AuthenticationPrincipal AuthenticatedUser adminUser
+    ) {
+        return VendorResponse.from(vendorService.reactivateVendor(vendorId, adminUser, request.reason()));
+    }
+
     @GetMapping("/verification-documents/{fileId}/download")
     public SignedDownloadResponse downloadVerificationDocument(
         @PathVariable UUID fileId,

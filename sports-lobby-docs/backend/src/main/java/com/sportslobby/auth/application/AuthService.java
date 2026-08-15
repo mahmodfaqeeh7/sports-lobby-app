@@ -1,15 +1,19 @@
 package com.sportslobby.auth.application;
 
 import com.sportslobby.auth.api.ForgotPasswordRequest;
+import com.sportslobby.auth.api.GoogleAuthRequest;
+import com.sportslobby.auth.api.ChangeUnverifiedPhoneRequest;
 import com.sportslobby.auth.api.LoginRequest;
 import com.sportslobby.auth.api.LogoutRequest;
 import com.sportslobby.auth.api.OtpRequest;
 import com.sportslobby.auth.api.OtpResponse;
 import com.sportslobby.auth.api.OtpVerifyRequest;
+import com.sportslobby.auth.api.PhoneChangeResponse;
 import com.sportslobby.auth.api.RefreshTokenRequest;
 import com.sportslobby.auth.api.RegisterPlayerRequest;
 import com.sportslobby.auth.api.ResetPasswordRequest;
 import com.sportslobby.auth.domain.AuthTokens;
+import com.sportslobby.auth.domain.LegalDocumentType;
 import com.sportslobby.auth.domain.OtpChallenge;
 import com.sportslobby.auth.domain.OtpPurpose;
 import com.sportslobby.auth.domain.PasswordResetToken;
@@ -18,16 +22,21 @@ import com.sportslobby.auth.domain.UserAccount;
 import com.sportslobby.auth.domain.UserRole;
 import com.sportslobby.auth.domain.UserStatus;
 import com.sportslobby.auth.integration.OtpSender;
+import com.sportslobby.auth.integration.GoogleIdentity;
+import com.sportslobby.auth.integration.GoogleIdentityVerifier;
 import com.sportslobby.auth.integration.PasswordResetSender;
 import com.sportslobby.auth.persistence.AuthRepository;
 import com.sportslobby.common.api.ApiErrorCode;
 import com.sportslobby.common.api.ApiException;
 import com.sportslobby.security.AccessTokenService;
+import com.sportslobby.security.AuthenticatedUser;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,6 +44,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class AuthService {
     private static final String TEST_OTP_CODE = "999999";
+    public static final String LEGAL_DOCUMENT_VERSION = "2026-08-14";
 
     private final AuthRepository authRepository;
     private final PasswordEncoder passwordEncoder;
@@ -42,8 +52,10 @@ public class AuthService {
     private final TokenHashingService tokenHashingService;
     private final OtpSender otpSender;
     private final PasswordResetSender passwordResetSender;
+    private final GoogleIdentityVerifier googleIdentityVerifier;
     private final AuthProperties authProperties;
     private final Clock clock;
+    private final String dummyPasswordHash;
 
     public AuthService(
         AuthRepository authRepository,
@@ -52,6 +64,7 @@ public class AuthService {
         TokenHashingService tokenHashingService,
         OtpSender otpSender,
         PasswordResetSender passwordResetSender,
+        GoogleIdentityVerifier googleIdentityVerifier,
         AuthProperties authProperties,
         Clock clock
     ) {
@@ -61,8 +74,10 @@ public class AuthService {
         this.tokenHashingService = tokenHashingService;
         this.otpSender = otpSender;
         this.passwordResetSender = passwordResetSender;
+        this.googleIdentityVerifier = googleIdentityVerifier;
         this.authProperties = authProperties;
         this.clock = clock;
+        this.dummyPasswordHash = passwordEncoder.encode(tokenHashingService.newOpaqueToken());
     }
 
     @Transactional
@@ -90,6 +105,7 @@ public class AuthService {
         );
         authRepository.addRole(userId, UserRole.PLAYER);
         authRepository.createPlayerProfile(userId, firstName + " " + lastName);
+        recordLegalConsents(userId, Instant.now(clock));
         requestPhoneVerification(phoneE164, userId);
 
         UserAccount user = authRepository.findUserById(userId).orElseThrow();
@@ -98,14 +114,18 @@ public class AuthService {
 
     @Transactional
     public AuthResult login(LoginRequest request) {
-        UserAccount user = authRepository.findUserByPhone(normalizePhone(request.phoneE164()))
-            .orElseThrow(this::invalidCredentials);
+        Optional<UserAccount> account = authRepository.findUserByPhone(normalizePhone(request.phoneE164()));
+        String storedHash = account.map(UserAccount::passwordHash)
+            .filter(hash -> hash != null && !hash.isBlank())
+            .orElse(dummyPasswordHash);
+        boolean passwordMatches = passwordEncoder.matches(request.password(), storedHash);
+        if (account.isEmpty() || !passwordMatches || account.get().passwordHash() == null) {
+            throw invalidCredentials();
+        }
+        UserAccount user = account.get();
 
         if (user.status() == UserStatus.SUSPENDED || user.status() == UserStatus.DELETED) {
             throw new ApiException(HttpStatus.FORBIDDEN, ApiErrorCode.FORBIDDEN, "Account is not allowed to sign in.");
-        }
-        if (user.passwordHash() == null || !passwordEncoder.matches(request.password(), user.passwordHash())) {
-            throw invalidCredentials();
         }
 
         return new AuthResult(user, issueTokens(user, request.deviceLabel()));
@@ -140,7 +160,7 @@ public class AuthService {
             throw new ApiException(HttpStatus.TOO_MANY_REQUESTS, ApiErrorCode.RATE_LIMITED, "OTP attempt limit reached.");
         }
 
-        boolean validTestOtp = TEST_OTP_CODE.equals(request.code());
+        boolean validTestOtp = authProperties.otp().testCodeEnabled() && TEST_OTP_CODE.equals(request.code());
         String submittedHash = tokenHashingService.hashOtp(challenge.id(), request.code(), phoneE164);
         if (!validTestOtp && !submittedHash.equals(challenge.codeHash())) {
             authRepository.incrementOtpAttempts(challenge.id());
@@ -258,6 +278,109 @@ public class AuthService {
         authRepository.createOtpChallenge(challenge);
         otpSender.send(phoneE164, code, OtpPurpose.PHONE_VERIFICATION);
         return new OtpResponse("ACCEPTED", challenge.expiresAt(), challenge.resendAvailableAt());
+    }
+
+    @Transactional
+    public AuthResult googleSignIn(GoogleAuthRequest request) {
+        GoogleIdentity identity = googleIdentityVerifier.verify(request.idToken());
+        UserAccount existing = authRepository.findUserByExternalIdentity("GOOGLE", identity.subject()).orElse(null);
+        if (existing != null) {
+            ensureCanUseSession(existing);
+            return new AuthResult(existing, issueTokens(existing, request.deviceLabel()));
+        }
+
+        String email = normalizeEmail(identity.email());
+        if (authRepository.emailExists(email)) {
+            throw new ApiException(
+                HttpStatus.CONFLICT,
+                ApiErrorCode.CONFLICT,
+                "This email already has an account. Sign in with the existing method before linking Google."
+            );
+        }
+        if (request.phoneE164() == null || request.phoneE164().isBlank()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, ApiErrorCode.VALIDATION_ERROR, "Phone number is required for a new Google account.");
+        }
+        if (!Boolean.TRUE.equals(request.acceptedTerms()) || !Boolean.TRUE.equals(request.acceptedPrivacy())) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, ApiErrorCode.VALIDATION_ERROR, "Terms and Privacy Policy acceptance is required.");
+        }
+
+        String phone = normalizePhone(request.phoneE164());
+        if (authRepository.phoneExists(phone)) {
+            throw new ApiException(
+                HttpStatus.CONFLICT,
+                ApiErrorCode.CONFLICT,
+                "This phone already has an account. Sign in with the existing method before linking Google."
+            );
+        }
+
+        Instant now = Instant.now(clock);
+        UUID userId = UUID.randomUUID();
+        String firstName = normalizeName(identity.firstName());
+        String lastName = normalizeName(identity.lastName());
+        authRepository.createPlayerUser(userId, firstName, lastName, email, phone, null);
+        authRepository.addRole(userId, UserRole.PLAYER);
+        authRepository.createPlayerProfile(userId, firstName + " " + lastName);
+        authRepository.createExternalIdentity(UUID.randomUUID(), userId, "GOOGLE", identity.subject(), now);
+        recordLegalConsents(userId, now);
+        requestPhoneVerification(phone, userId);
+
+        UserAccount user = authRepository.findUserById(userId).orElseThrow();
+        return new AuthResult(user, issueTokens(user, request.deviceLabel()));
+    }
+
+    public void recordLegalConsents(UUID userId, Instant acceptedAt) {
+        authRepository.recordLegalConsent(
+            UUID.randomUUID(), userId, LegalDocumentType.TERMS_OF_SERVICE, LEGAL_DOCUMENT_VERSION, acceptedAt
+        );
+        authRepository.recordLegalConsent(
+            UUID.randomUUID(), userId, LegalDocumentType.PRIVACY_POLICY, LEGAL_DOCUMENT_VERSION, acceptedAt
+        );
+    }
+
+    @Transactional
+    public PhoneChangeResponse changeUnverifiedPhone(
+        ChangeUnverifiedPhoneRequest request,
+        AuthenticatedUser authenticatedUser
+    ) {
+        if (authenticatedUser == null) {
+            throw new ApiException(HttpStatus.UNAUTHORIZED, ApiErrorCode.UNAUTHENTICATED, "Authentication is required.");
+        }
+
+        UserAccount user = authRepository.findUserById(authenticatedUser.userId())
+            .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, ApiErrorCode.RESOURCE_NOT_FOUND, "Account not found."));
+        if (user.phoneVerifiedAt() != null) {
+            throw new ApiException(
+                HttpStatus.CONFLICT,
+                ApiErrorCode.CONFLICT,
+                "This recovery path is only available before phone verification."
+            );
+        }
+        if (user.passwordHash() != null && (
+            request.currentPassword() == null ||
+            !passwordEncoder.matches(request.currentPassword(), user.passwordHash())
+        )) {
+            throw invalidCredentials();
+        }
+
+        String newPhone = normalizePhone(request.phoneE164());
+        if (newPhone.equals(user.phoneE164())) {
+            throw new ApiException(HttpStatus.CONFLICT, ApiErrorCode.CONFLICT, "Enter a different phone number.");
+        }
+        if (authRepository.phoneExists(newPhone)) {
+            throw new ApiException(HttpStatus.CONFLICT, ApiErrorCode.CONFLICT, "Phone number is already registered.");
+        }
+
+        Instant now = Instant.now(clock);
+        authRepository.consumeOtpChallenges(user.phoneE164(), OtpPurpose.PHONE_VERIFICATION, now);
+        try {
+            if (!authRepository.updateUnverifiedPhone(user.id(), user.phoneE164(), newPhone, now)) {
+                throw new ApiException(HttpStatus.CONFLICT, ApiErrorCode.CONFLICT, "Phone verification state changed. Try again.");
+            }
+        } catch (DataIntegrityViolationException exception) {
+            throw new ApiException(HttpStatus.CONFLICT, ApiErrorCode.CONFLICT, "Phone number is already registered.");
+        }
+        OtpResponse otp = requestPhoneVerification(newPhone, user.id());
+        return new PhoneChangeResponse(newPhone, otp);
     }
 
     private AuthTokens issueTokens(UserAccount user, String deviceLabel) {

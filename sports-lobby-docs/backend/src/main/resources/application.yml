@@ -1,6 +1,8 @@
 spring:
   application:
     name: sports-lobby-backend
+  config:
+    import: optional:file:.env[.properties]
   datasource:
     url: ${SPORTS_LOBBY_DB_URL:jdbc:postgresql://localhost:5432/sports_lobby}
     username: ${SPORTS_LOBBY_DB_USER:sports_lobby}
@@ -11,6 +13,7 @@ spring:
 
 server:
   port: ${PORT:8080}
+  forward-headers-strategy: ${SPORTS_LOBBY_FORWARD_HEADERS_STRATEGY:none}
 
 management:
   endpoints:
@@ -23,6 +26,8 @@ management:
         enabled: true
 
 app:
+  production:
+    enabled: ${SPORTS_LOBBY_PRODUCTION_MODE:false}
   api:
     request-id-header: X-Request-Id
   auth:
@@ -33,13 +38,24 @@ app:
       ttl: ${SPORTS_LOBBY_OTP_TTL:5m}
       resend-cooldown: ${SPORTS_LOBBY_OTP_RESEND_COOLDOWN:60s}
       max-attempts: ${SPORTS_LOBBY_OTP_MAX_ATTEMPTS:5}
+      test-code-enabled: ${SPORTS_LOBBY_TEST_OTP_ENABLED:false}
     password-reset:
       ttl: ${SPORTS_LOBBY_PASSWORD_RESET_TTL:15m}
+    google:
+      enabled: ${SPORTS_LOBBY_GOOGLE_AUTH_ENABLED:false}
+      client-id: ${SPORTS_LOBBY_GOOGLE_WEB_CLIENT_ID:}
+  security:
+    require-https: ${SPORTS_LOBBY_REQUIRE_HTTPS:false}
+    rate-limit:
+      enabled: ${SPORTS_LOBBY_RATE_LIMIT_ENABLED:true}
+      max-tracked-keys: ${SPORTS_LOBBY_RATE_LIMIT_MAX_KEYS:100000}
   sms:
     twilio:
       enabled: ${SPORTS_LOBBY_TWILIO_ENABLED:false}
       account-sid: ${TWILIO_ACCOUNT_SID:}
       auth-token: ${TWILIO_AUTH_TOKEN:}
+      api-key-sid: ${TWILIO_API_KEY_SID:}
+      api-key-secret: ${TWILIO_API_KEY_SECRET:}
       from-number: ${TWILIO_FROM_NUMBER:}
       messaging-service-sid: ${TWILIO_MESSAGING_SERVICE_SID:}
   admin:
@@ -51,8 +67,15 @@ app:
       phone-e164: ${SPORTS_LOBBY_ADMIN_PHONE_E164:}
       password: ${SPORTS_LOBBY_ADMIN_PASSWORD:}
   files:
+    provider: ${SPORTS_LOBBY_FILES_PROVIDER:local}
     bucket: ${SPORTS_LOBBY_FILES_BUCKET:sports-lobby-dev}
     vendor-verification-prefix: ${SPORTS_LOBBY_VENDOR_VERIFICATION_PREFIX:vendor-verification}
     signed-upload-ttl: ${SPORTS_LOBBY_SIGNED_UPLOAD_TTL:10m}
     signed-download-ttl: ${SPORTS_LOBBY_SIGNED_DOWNLOAD_TTL:5m}
-    max-vendor-verification-document-bytes: ${SPORTS_LOBBY_VENDOR_DOC_MAX_BYTES:10485760}
+    max-vendor-verification-document-bytes: ${SPORTS_LOBBY_VENDOR_DOC_MAX_BYTES:5242880}
+    local-base-url: ${SPORTS_LOBBY_LOCAL_FILE_BASE_URL:http://localhost:8080}
+    local-storage-path: ${SPORTS_LOBBY_LOCAL_FILE_STORAGE_PATH:.local-object-storage}
+    s3:
+      region: ${AWS_REGION:us-east-1}
+      endpoint: ${SPORTS_LOBBY_S3_ENDPOINT:}
+      path-style-access: ${SPORTS_LOBBY_S3_PATH_STYLE:false}

@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors, radii, spacing, typography } from '../../theme/tokens';
 
 export type MultiSelectOption = {
   key: string;
   label: string;
+  icon?: ReactNode;
 };
 
 type MultiSelectChipsProps = {
@@ -60,6 +61,7 @@ export function MultiSelectChips({
                 pressed && styles.pressed,
               ]}
             >
+              {option.icon}
               <Text
                 style={[styles.chipText, isSelected && styles.selectedChipText]}
               >
@@ -92,10 +94,13 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   chip: {
+    alignItems: 'center',
     backgroundColor: colors.surface,
     borderColor: colors.border,
     borderRadius: radii.md,
     borderWidth: 1,
+    flexDirection: 'row',
+    gap: spacing.sm,
     minHeight: 40,
     justifyContent: 'center',
     paddingHorizontal: spacing.md,

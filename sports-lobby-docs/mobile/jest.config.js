@@ -9,5 +9,9 @@ module.exports = {
   },
   moduleNameMapper: {
     '^@react-native-clipboard/clipboard$': '<rootDir>/__mocks__/clipboard.js',
+    '^@react-native-community/datetimepicker$': '<rootDir>/__mocks__/datetimepicker.js',
+    '^react-native-maps$': '<rootDir>/__mocks__/react-native-maps.js',
+    '^react-native-keychain$': '<rootDir>/__mocks__/keychain.js',
+    '^react-native-config$': '<rootDir>/__mocks__/react-native-config.js',
   },
 };

@@ -1,0 +1,20 @@
+diff --git a/node_modules/react-native-svg/android/src/main/jni/CMakeLists.txt b/node_modules/react-native-svg/android/src/main/jni/CMakeLists.txt
+index f21366b..bfc91ec 100644
+--- a/node_modules/react-native-svg/android/src/main/jni/CMakeLists.txt
++++ b/node_modules/react-native-svg/android/src/main/jni/CMakeLists.txt
+@@ -6,9 +6,13 @@ set(RNSVG_COMMON_DIR ${RNSVG_ANDROID_DIR}/../common/cpp)
+ set(RNSVG_GENERATED_DIR ${RNSVG_ANDROID_DIR}/build/generated)
+ set(RNSVG_GENERATED_JNI_DIR ${RNSVG_GENERATED_DIR}/source/codegen/jni)
+ set(RNSVG_GENERATED_REACT_DIR ${RNSVG_GENERATED_JNI_DIR}/react/renderer/components/rnsvg)
++set(RNSVG_STAGED_SRCS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/.staged)
+ 
+-file(GLOB rnsvg_SRCS CONFIGURE_DEPENDS *.cpp ${RNSVG_COMMON_DIR}/react/renderer/components/rnsvg/*.cpp)
+-file(GLOB rnsvg_codegen_SRCS CONFIGURE_DEPENDS ${RNSVG_GENERATED_REACT_DIR}/*cpp)
++file(COPY ${RNSVG_COMMON_DIR}/react/renderer/components/rnsvg/ DESTINATION ${RNSVG_STAGED_SRCS_DIR}/common)
++file(COPY ${RNSVG_GENERATED_REACT_DIR}/ DESTINATION ${RNSVG_STAGED_SRCS_DIR}/codegen)
++
++file(GLOB rnsvg_SRCS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} CONFIGURE_DEPENDS *.cpp .staged/common/*.cpp)
++file(GLOB rnsvg_codegen_SRCS RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} CONFIGURE_DEPENDS .staged/codegen/*.cpp)
+ 
+ add_library(
+   react_codegen_rnsvg

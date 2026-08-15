@@ -11,6 +11,7 @@ import { colors, spacing } from '../../../theme/tokens';
 import { NoticeState } from '../utils/authErrors';
 import { ForgotPasswordScreen } from './ForgotPasswordScreen';
 import { LoginScreen } from './LoginScreen';
+import { GoogleAuthScreen } from './GoogleAuthScreen';
 import { PhoneVerificationScreen } from './PhoneVerificationScreen';
 import { PlayerSignupScreen } from './PlayerSignupScreen';
 
@@ -34,11 +35,17 @@ export function AuthScreen({
     useState<PhoneVerificationContext>(EMPTY_VERIFICATION_CONTEXT);
 
   const beginPhoneConfirmation = async (context: PhoneVerificationContext) => {
-    setVerificationContext(context);
-    setView('confirmPhone');
+    let nextContext = context;
     if (!context.otpAlreadySent) {
-      await authApi.requestOtp(apiClient, context.phoneE164);
+      const response = await authApi.requestOtp(apiClient, context.phoneE164);
+      nextContext = {
+        ...context,
+        otpAlreadySent: true,
+        resendAvailableAt: response.resendAvailableAt,
+      };
     }
+    setVerificationContext(nextContext);
+    setView('confirmPhone');
     setNotice({
       title: context.title,
       message:
@@ -53,10 +60,15 @@ export function AuthScreen({
   };
 
   const customAuthLayout =
-    view === 'login' || view === 'playerSignup' || view === 'forgotPassword';
+    view === 'login' ||
+    view === 'playerSignup' ||
+    view === 'vendorSignup' ||
+    view === 'googleAuth' ||
+    view === 'forgotPassword';
 
   return (
     <AppScreen
+      key={view}
       title={customAuthLayout ? undefined : screenTitle(view)}
       subtitle={customAuthLayout ? undefined : screenSubtitle(view)}
       contentStyle={customAuthLayout ? styles.authContent : undefined}
@@ -79,8 +91,8 @@ export function AuthScreen({
       ) : null}
       {view === 'vendorSignup' ? (
         <VendorSignupScreen
+          onAuthenticated={onAuthenticated}
           onNavigate={navigate}
-          onPhoneVerificationRequired={beginPhoneConfirmation}
           setNotice={setNotice}
         />
       ) : null}
@@ -94,6 +106,9 @@ export function AuthScreen({
       ) : null}
       {view === 'forgotPassword' ? (
         <ForgotPasswordScreen onNavigate={navigate} setNotice={setNotice} />
+      ) : null}
+      {view === 'googleAuth' ? (
+        <GoogleAuthScreen onAuthenticated={onAuthenticated} onNavigate={navigate} setNotice={setNotice} />
       ) : null}
     </AppScreen>
   );
@@ -119,6 +134,8 @@ function screenTitle(view: AuthView): string {
       return 'Confirm Phone';
     case 'forgotPassword':
       return 'Password Help';
+    case 'googleAuth':
+      return 'Continue with Google';
     case 'login':
     default:
       return 'Sports Lobby';
@@ -135,6 +152,8 @@ function screenSubtitle(view: AuthView): string {
       return 'Enter the code we sent to your phone.';
     case 'forgotPassword':
       return 'Recover access to your account.';
+    case 'googleAuth':
+      return 'Connect Google and verify your phone.';
     case 'login':
     default:
       return 'Book sports lobbies and manage your games.';

@@ -67,6 +67,24 @@ public class JdbcFileRepository implements FileRepository {
         }
     }
 
+    @Override
+    public void markUploaded(UUID fileId, Instant uploadedAt) {
+        jdbcTemplate.update(
+            "UPDATE files SET upload_status = 'UPLOADED', updated_at = ? WHERE id = ? AND upload_status = 'PENDING_UPLOAD'",
+            Timestamp.from(uploadedAt),
+            fileId
+        );
+    }
+
+    @Override
+    public void markAbandoned(UUID fileId, Instant abandonedAt) {
+        jdbcTemplate.update(
+            "UPDATE files SET upload_status = 'ABANDONED', updated_at = ? WHERE id = ? AND upload_status = 'PENDING_UPLOAD'",
+            Timestamp.from(abandonedAt),
+            fileId
+        );
+    }
+
     private FileRecord mapFile(ResultSet rs, int rowNum) throws SQLException {
         return new FileRecord(
             rs.getObject("id", UUID.class),

@@ -1,5 +1,6 @@
 import React, { ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import Check from 'lucide-react-native/icons/check';
 import { colors, spacing, typography } from '../../theme/tokens';
 
 export type StepperStep = {
@@ -59,14 +60,18 @@ export function Stepper({
                     active || completed ? styles.circleActive : undefined,
                   ]}
                 >
-                  <Text
-                    style={[
-                      styles.number,
-                      active || completed ? styles.numberActive : undefined,
-                    ]}
-                  >
-                    {index + 1}
-                  </Text>
+                  {completed ? (
+                    <Check color={colors.brand} size={19} strokeWidth={2.4} />
+                  ) : (
+                    <Text
+                      style={[
+                        styles.number,
+                        active ? styles.numberActive : undefined,
+                      ]}
+                    >
+                      {index + 1}
+                    </Text>
+                  )}
                 </View>
                 <View style={styles.stepCopy}>
                   <Text
@@ -79,6 +84,8 @@ export function Stepper({
                   </Text>
                   {active ? (
                     <Text style={styles.activeText}>active</Text>
+                  ) : completed ? (
+                    <Text style={styles.completedText}>completed</Text>
                   ) : null}
                 </View>
               </Pressable>
@@ -99,7 +106,7 @@ const styles = StyleSheet.create({
     gap: spacing.xxl,
   },
   progress: {
-    alignItems: 'center',
+    alignItems: 'flex-start',
     alignSelf: 'center',
     flexDirection: 'row',
     justifyContent: 'center',
@@ -108,9 +115,9 @@ const styles = StyleSheet.create({
   },
   step: {
     alignItems: 'center',
-    flexDirection: 'row',
-    gap: spacing.sm,
-    minHeight: 48,
+    gap: spacing.xs,
+    minHeight: 78,
+    width: 74,
   },
   circle: {
     alignItems: 'center',
@@ -134,11 +141,13 @@ const styles = StyleSheet.create({
     color: colors.brand,
   },
   stepCopy: {
-    minWidth: 52,
+    alignItems: 'center',
+    width: 88,
   },
   label: {
     ...typography.body,
     color: colors.muted,
+    textAlign: 'center',
   },
   labelActive: {
     color: colors.brand,
@@ -147,13 +156,21 @@ const styles = StyleSheet.create({
   activeText: {
     ...typography.caption,
     color: colors.brand,
+    textAlign: 'center',
+  },
+  completedText: {
+    ...typography.caption,
+    color: colors.muted,
+    textAlign: 'center',
   },
   connector: {
     backgroundColor: colors.divider,
+    flex: 1,
     height: 1,
-    marginHorizontal: spacing.lg,
-    maxWidth: 72,
-    minWidth: 28,
+    marginHorizontal: spacing.xs,
+    marginTop: 24,
+    maxWidth: 80,
+    minWidth: 16,
   },
   connectorComplete: {
     backgroundColor: colors.brand,

@@ -34,7 +34,7 @@
 		<true/>
 	</dict>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Sports Lobby uses your location to show nearby venues and lobbies.</string>
+	<string>PlayLobby uses your location only when you ask to center a facility map near you or find nearby venues.</string>
 	<key>RCTNewArchEnabled</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>

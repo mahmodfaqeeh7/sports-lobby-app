@@ -32,11 +32,14 @@ Provide secure account creation, login, phone verification, Google identity, pas
 - Request/complete password reset: `POST /api/v1/auth/password/forgot`, `POST /api/v1/auth/password/reset`.
 - Start vendor account.
 - Google login/link.
+- Correct an unverified phone using a fresh authenticated session: `PATCH /api/v1/me/unverified-phone`.
 
 Current implementation note:
 - Player registration, phone/password login, OTP verification, bearer access tokens, refresh token rotation/revocation, logout, and password reset are implemented as the authentication foundation.
 - OTP and password-reset delivery are behind provider interfaces. The local default adapters do not log or expose codes/tokens.
-- Vendor onboarding/verification and Google sign-in remain future work.
+- Google mobile sign-in and server-side Google ID-token verification are implemented behind environment-specific OAuth client configuration. New Google accounts still collect and verify a unique phone number.
+- Player and vendor signup require versioned Terms of Service and Privacy Policy acceptance, recorded per user.
+- Before phone verification, an authenticated account may replace a mistyped phone after password re-authentication when the account has a password. Existing OTP challenges are invalidated and a new code is issued.
 
 ## Errors/edge cases
 - duplicate phone/email;

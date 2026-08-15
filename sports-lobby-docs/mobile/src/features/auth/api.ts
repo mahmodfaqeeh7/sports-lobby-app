@@ -13,6 +13,8 @@ export type RegisterPlayerRequest = {
   phoneE164: string;
   password: string;
   deviceLabel?: string;
+  acceptedTerms: boolean;
+  acceptedPrivacy: boolean;
 };
 
 export type LoginRequest = {
@@ -31,6 +33,14 @@ export type GenericStatusResponse = {
   status: string;
 };
 
+export type GoogleAuthRequest = {
+  idToken: string;
+  phoneE164: string;
+  acceptedTerms: boolean;
+  acceptedPrivacy: boolean;
+  deviceLabel?: string;
+};
+
 export function toSession(response: AuthResponse): AuthenticatedSession {
   return {
     userId: response.user.id,
@@ -43,8 +53,23 @@ export const authApi = {
   registerPlayer(client: ApiClient, request: RegisterPlayerRequest) {
     return client.post<AuthResponse>('/auth/register', request);
   },
+  changeUnverifiedPhone(
+    client: ApiClient,
+    accessToken: string,
+    phoneE164: string,
+    currentPassword?: string,
+  ) {
+    return client.patch<{phoneE164: string; otp: OtpResponse}>(
+      '/me/unverified-phone',
+      {phoneE164, currentPassword},
+      accessToken,
+    );
+  },
   login(client: ApiClient, request: LoginRequest) {
     return client.post<AuthResponse>('/auth/login', request);
+  },
+  google(client: ApiClient, request: GoogleAuthRequest) {
+    return client.post<AuthResponse>('/auth/google', request);
   },
   requestOtp(client: ApiClient, phoneE164: string) {
     return client.post<OtpResponse>('/auth/otp/request', {phoneE164});

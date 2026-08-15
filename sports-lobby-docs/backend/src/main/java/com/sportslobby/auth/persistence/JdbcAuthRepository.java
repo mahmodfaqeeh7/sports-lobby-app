@@ -1,6 +1,7 @@
 package com.sportslobby.auth.persistence;
 
 import com.sportslobby.auth.domain.OtpChallenge;
+import com.sportslobby.auth.domain.LegalDocumentType;
 import com.sportslobby.auth.domain.OtpPurpose;
 import com.sportslobby.auth.domain.PasswordResetToken;
 import com.sportslobby.auth.domain.RefreshSession;
@@ -101,6 +102,24 @@ public class JdbcAuthRepository implements AuthRepository {
     }
 
     @Override
+    public void recordLegalConsent(
+        UUID id,
+        UUID userId,
+        LegalDocumentType documentType,
+        String version,
+        Instant acceptedAt
+    ) {
+        jdbcTemplate.update(
+            "INSERT INTO user_legal_consents (id, user_id, document_type, document_version, accepted_at) VALUES (?, ?, ?, ?, ?)",
+            id,
+            userId,
+            documentType.name(),
+            version,
+            Timestamp.from(acceptedAt)
+        );
+    }
+
+    @Override
     public Optional<UserAccount> findUserById(UUID userId) {
         return queryUser("WHERE u.id = ?", userId);
     }
@@ -108,6 +127,64 @@ public class JdbcAuthRepository implements AuthRepository {
     @Override
     public Optional<UserAccount> findUserByPhone(String phoneE164) {
         return queryUser("WHERE u.phone_e164 = ?", phoneE164);
+    }
+
+    @Override
+    public Optional<UserAccount> findUserByEmail(String email) {
+        return queryUser("WHERE LOWER(u.email) = LOWER(?)", email);
+    }
+
+    @Override
+    public Optional<UserAccount> findUserByExternalIdentity(String provider, String providerSubject) {
+        return queryOptional(
+            """
+            SELECT u.id, u.first_name, u.last_name, u.email, u.phone_e164, u.phone_verified_at,
+                   u.password_hash, u.status
+            FROM external_identities e
+            JOIN users u ON u.id = e.user_id
+            WHERE e.provider = ? AND e.provider_subject = ?
+            """,
+            (rs, rowNum) -> {
+                UUID userId = rs.getObject("id", UUID.class);
+                return new UserAccount(
+                    userId,
+                    rs.getString("first_name"),
+                    rs.getString("last_name"),
+                    rs.getString("email"),
+                    rs.getString("phone_e164"),
+                    toInstant(rs.getTimestamp("phone_verified_at")),
+                    rs.getString("password_hash"),
+                    UserStatus.valueOf(rs.getString("status")),
+                    findRoles(userId)
+                );
+            },
+            provider,
+            providerSubject
+        );
+    }
+
+    @Override
+    public void createExternalIdentity(UUID id, UUID userId, String provider, String providerSubject, Instant now) {
+        jdbcTemplate.update(
+            "INSERT INTO external_identities (id, user_id, provider, provider_subject, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
+            id,
+            userId,
+            provider,
+            providerSubject,
+            Timestamp.from(now),
+            Timestamp.from(now)
+        );
+    }
+
+    @Override
+    public boolean updateUnverifiedPhone(UUID userId, String oldPhoneE164, String newPhoneE164, Instant updatedAt) {
+        return jdbcTemplate.update(
+            "UPDATE users SET phone_e164 = ?, updated_at = ? WHERE id = ? AND phone_e164 = ? AND phone_verified_at IS NULL",
+            newPhoneE164,
+            Timestamp.from(updatedAt),
+            userId,
+            oldPhoneE164
+        ) == 1;
     }
 
     @Override

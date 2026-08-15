@@ -12,7 +12,17 @@ public record VerificationSubmissionResponse(
     Instant submittedAt,
     Instant reviewedAt,
     UUID reviewedByAdminUserId,
-    String decisionReason
+    String decisionReason,
+    String businessName,
+    String contactPhone,
+    String contactEmail,
+    String countryCode,
+    String city,
+    String area,
+    String addressLine,
+    String supportedSports,
+    Integer venueCountEstimate,
+    String openingHours
 ) {
     public static VerificationSubmissionResponse from(VendorVerificationSubmission submission) {
         return new VerificationSubmissionResponse(
@@ -23,7 +33,17 @@ public record VerificationSubmissionResponse(
             submission.submittedAt(),
             submission.reviewedAt(),
             submission.reviewedByAdminUserId(),
-            submission.decisionReason()
+            submission.decisionReason(),
+            submission.businessNameSnapshot(),
+            submission.contactPhoneSnapshot(),
+            submission.contactEmailSnapshot(),
+            submission.countryCodeSnapshot(),
+            submission.citySnapshot(),
+            submission.areaSnapshot(),
+            submission.addressLineSnapshot(),
+            submission.supportedSportsSnapshot(),
+            submission.venueCountEstimateSnapshot(),
+            submission.openingHoursSnapshot()
         );
     }
 }

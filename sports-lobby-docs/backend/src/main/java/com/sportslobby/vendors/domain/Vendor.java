@@ -20,6 +20,7 @@ public record Vendor(
     Integer venueCountEstimate,
     String openingHours,
     VerificationStatus verificationStatus,
+    String statusReason,
     Instant approvedAt,
     Instant suspendedAt,
     Instant createdAt,

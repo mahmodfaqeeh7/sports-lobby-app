@@ -1,7 +1,6 @@
 package com.sportslobby.vendors.api;
 
 import com.sportslobby.vendors.domain.Vendor;
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -15,12 +14,11 @@ public record VendorResponse(
     String city,
     String area,
     String addressLine,
-    BigDecimal latitude,
-    BigDecimal longitude,
     String supportedSports,
     Integer venueCountEstimate,
     String openingHours,
     String verificationStatus,
+    String statusReason,
     Instant approvedAt,
     Instant suspendedAt
 ) {
@@ -35,12 +33,11 @@ public record VendorResponse(
             vendor.city(),
             vendor.area(),
             vendor.addressLine(),
-            vendor.latitude(),
-            vendor.longitude(),
             vendor.supportedSports(),
             vendor.venueCountEstimate(),
             vendor.openingHours(),
             vendor.verificationStatus().name(),
+            vendor.statusReason(),
             vendor.approvedAt(),
             vendor.suspendedAt()
         );

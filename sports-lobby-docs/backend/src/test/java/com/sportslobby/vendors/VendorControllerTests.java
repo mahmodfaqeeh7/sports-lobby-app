@@ -4,7 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -64,14 +66,20 @@ class VendorControllerTests {
         assertThat(response.path("user").path("roles").toString()).contains("VENDOR");
         assertThat(response.path("vendor").path("verificationStatus").asText()).isEqualTo("PENDING");
         assertThat(response.path("verificationSubmission").path("status").asText()).isEqualTo("PENDING");
-        assertThat(response.path("documentUploads").get(0).path("uploadUrl").asText()).contains("signed=upload");
+        String uploadUrl = response.path("documentUploads").get(0).path("uploadUrl").asText();
+        assertThat(uploadUrl).contains("/api/v1/files/local/uploads/");
+
+        mockMvc.perform(put(java.net.URI.create(uploadUrl).getPath())
+                .contentType(MediaType.APPLICATION_PDF)
+                .content(new byte[1024]))
+            .andExpect(status().isNoContent());
 
         Integer vendorCount = jdbcTemplate.queryForObject(
             "SELECT COUNT(*) FROM vendors WHERE verification_status = 'PENDING'",
             Integer.class
         );
         Integer privateFileCount = jdbcTemplate.queryForObject(
-            "SELECT COUNT(*) FROM files WHERE purpose = 'VENDOR_VERIFICATION_DOCUMENT' AND access_level = 'PRIVATE'",
+            "SELECT COUNT(*) FROM files WHERE purpose = 'VENDOR_VERIFICATION_DOCUMENT' AND access_level = 'PRIVATE' AND upload_status = 'UPLOADED'",
             Integer.class
         );
         assertThat(vendorCount).isEqualTo(1);
@@ -105,11 +113,21 @@ class VendorControllerTests {
             .andExpect(status().isNotFound())
             .andExpect(jsonPath("$.error.code").value("RESOURCE_NOT_FOUND"));
 
+        uploadFirstDocument(first);
         String firstFileId = first.path("documentUploads").get(0).path("fileId").asText();
-        mockMvc.perform(get("/api/v1/vendor/verification-documents/{fileId}/download", firstFileId)
+        String signedDownload = mockMvc.perform(get("/api/v1/vendor/verification-documents/{fileId}/download", firstFileId)
                 .header("Authorization", "Bearer " + firstAccessToken))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.downloadUrl").isNotEmpty());
+            .andExpect(jsonPath("$.downloadUrl").isNotEmpty())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+        String downloadUrl = objectMapper.readTree(signedDownload).path("downloadUrl").asText();
+        mockMvc.perform(get(java.net.URI.create(downloadUrl).getPath()))
+            .andExpect(status().isOk())
+            .andExpect(header().string("Content-Type", MediaType.APPLICATION_PDF_VALUE))
+            .andExpect(header().string("Content-Disposition", "inline; filename=\"license.pdf\""));
     }
 
     @Test
@@ -121,6 +139,24 @@ class VendorControllerTests {
         assertThatThrownBy(() -> publishingGuard.requireCanPublish(vendorId))
             .isInstanceOf(ApiException.class)
             .satisfies(exception -> assertThat(((ApiException) exception).getCode()).isEqualTo(ApiErrorCode.VENDOR_NOT_APPROVED));
+
+        mockMvc.perform(post("/api/v1/admin/vendors/{vendorId}/approve", vendorId)
+                .header("Authorization", "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json(Map.of("reason", "Verified documents"))))
+            .andExpect(status().isConflict())
+            .andExpect(jsonPath("$.error.message").value("Approval requires an uploaded business license and no unfinished document uploads."));
+
+        uploadFirstDocument(signup);
+
+        mockMvc.perform(get("/api/v1/admin/vendors/{vendorId}/review", vendorId)
+                .header("Authorization", "Bearer " + adminToken))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.owner.email").value("vendor4@example.com"))
+            .andExpect(jsonPath("$.submission.businessName").value("Amman Sports Courts"))
+            .andExpect(jsonPath("$.documents[0].fileName").value("license.pdf"))
+            .andExpect(jsonPath("$.documents[0].uploadStatus").value("UPLOADED"))
+            .andExpect(jsonPath("$.readyForDecision").value(true));
 
         mockMvc.perform(post("/api/v1/admin/vendors/{vendorId}/approve", vendorId)
                 .header("Authorization", "Bearer " + adminToken)
@@ -161,6 +197,108 @@ class VendorControllerTests {
             Integer.class
         );
         assertThat(rejectedSubmissions).isEqualTo(1);
+
+        String vendorToken = signup.path("tokens").path("accessToken").asText();
+        mockMvc.perform(get("/api/v1/vendor/kyc")
+                .header("Authorization", "Bearer " + vendorToken))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.latestSubmission.decisionReason").value("License document is unreadable"));
+
+        mockMvc.perform(post("/api/v1/vendor/verification/resubmit")
+                .header("Authorization", "Bearer " + vendorToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json(Map.of("verificationDocuments", new Object[] {
+                    Map.of(
+                        "documentType", "BUSINESS_LICENSE",
+                        "fileName", "clear-license.pdf",
+                        "contentType", "application/pdf",
+                        "sizeBytes", 2048
+                    )
+                }))))
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.vendor.verificationStatus").value("PENDING"))
+            .andExpect(jsonPath("$.verificationSubmission.submissionNumber").value(2));
+
+        Integer submissions = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM vendor_verification_submissions WHERE vendor_id = ?",
+            Integer.class,
+            UUID.fromString(signup.path("vendor").path("id").asText())
+        );
+        assertThat(submissions).isEqualTo(2);
+    }
+
+    @Test
+    void vendorCanReplaceAndContinueAnInterruptedUpload() throws Exception {
+        JsonNode signup = signup("+962790001009", "vendor9@example.com");
+        String accessToken = signup.path("tokens").path("accessToken").asText();
+        String originalFileId = signup.path("documentUploads").get(0).path("fileId").asText();
+
+        String responseBody = mockMvc.perform(post(
+                "/api/v1/vendor/verification-documents/{fileId}/upload-url",
+                originalFileId
+            )
+                .header("Authorization", "Bearer " + accessToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json(Map.of(
+                    "fileName", "replacement-license.pdf",
+                    "contentType", "application/pdf",
+                    "sizeBytes", 2048
+                ))))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.fileId").value(org.hamcrest.Matchers.not(originalFileId)))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+        JsonNode replacement = objectMapper.readTree(responseBody);
+        mockMvc.perform(put(java.net.URI.create(replacement.path("uploadUrl").asText()).getPath())
+                .contentType(MediaType.APPLICATION_PDF)
+                .content(new byte[2048]))
+            .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/v1/vendor/kyc").header("Authorization", "Bearer " + accessToken))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.documents[0].fileName").value("replacement-license.pdf"))
+            .andExpect(jsonPath("$.documents[0].uploadStatus").value("UPLOADED"));
+        Integer abandoned = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM files WHERE id = ? AND upload_status = 'ABANDONED'",
+            Integer.class,
+            UUID.fromString(originalFileId)
+        );
+        assertThat(abandoned).isEqualTo(1);
+    }
+
+    @Test
+    void adminSuspensionReasonIsVisibleToVendorAndReactivationIsAudited() throws Exception {
+        JsonNode signup = signup("+962790001008", "vendor8@example.com");
+        String vendorId = signup.path("vendor").path("id").asText();
+        String vendorToken = signup.path("tokens").path("accessToken").asText();
+        String adminToken = createAdminAccessToken();
+
+        uploadFirstDocument(signup);
+
+        mockMvc.perform(post("/api/v1/admin/vendors/{vendorId}/approve", vendorId)
+                .header("Authorization", "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json(Map.of("reason", "Documents verified"))))
+            .andExpect(status().isOk());
+        mockMvc.perform(post("/api/v1/admin/vendors/{vendorId}/suspend", vendorId)
+                .header("Authorization", "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json(Map.of("reason", "Repeated unsafe facility reports"))))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.statusReason").value("Repeated unsafe facility reports"));
+        mockMvc.perform(get("/api/v1/vendor/kyc")
+                .header("Authorization", "Bearer " + vendorToken))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.vendor.verificationStatus").value("SUSPENDED"))
+            .andExpect(jsonPath("$.vendor.statusReason").value("Repeated unsafe facility reports"));
+        mockMvc.perform(post("/api/v1/admin/vendors/{vendorId}/reactivate", vendorId)
+                .header("Authorization", "Bearer " + adminToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json(Map.of("reason", "Remediation confirmed"))))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.verificationStatus").value("APPROVED"));
     }
 
     @Test
@@ -190,8 +328,6 @@ class VendorControllerTests {
         body.put("city", "Amman");
         body.put("area", "Khalda");
         body.put("addressLine", "Main Street 1");
-        body.put("latitude", 31.9539);
-        body.put("longitude", 35.9106);
         body.put("supportedSports", "Football, Basketball");
         body.put("venueCountEstimate", 1);
         body.put("openingHours", "Daily 08:00-23:00");
@@ -203,6 +339,8 @@ class VendorControllerTests {
                 "sizeBytes", 1024
             )
         });
+        body.put("acceptedTerms", true);
+        body.put("acceptedPrivacy", true);
 
         String response = mockMvc.perform(post("/api/v1/vendors/signup")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -212,6 +350,14 @@ class VendorControllerTests {
             .getResponse()
             .getContentAsString();
         return objectMapper.readTree(response);
+    }
+
+    private void uploadFirstDocument(JsonNode signup) throws Exception {
+        String uploadUrl = signup.path("documentUploads").get(0).path("uploadUrl").asText();
+        mockMvc.perform(put(java.net.URI.create(uploadUrl).getPath())
+                .contentType(MediaType.APPLICATION_PDF)
+                .content(new byte[1024]))
+            .andExpect(status().isNoContent());
     }
 
     private String createAdminAccessToken() {

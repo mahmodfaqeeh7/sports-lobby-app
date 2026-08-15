@@ -1,14 +1,19 @@
 import {ApiErrorResponse} from './types';
-import {Platform} from 'react-native';
+import {apiBaseUrl} from '../../config/environment';
 
 const REQUEST_TIMEOUT_MS = 8000;
-const DEFAULT_API_BASE_URL =
-  Platform.OS === 'android'
-    ? 'http://10.0.2.2:8080/api/v1'
-    : 'http://localhost:8080/api/v1';
+const DEFAULT_API_BASE_URL = apiBaseUrl();
 
 export class ApiClient {
+  private unauthorizedHandler?: (failedAccessToken: string) => Promise<string | undefined>;
+
   constructor(private readonly baseUrl: string = DEFAULT_API_BASE_URL) {}
+
+  setUnauthorizedHandler(
+    handler?: (failedAccessToken: string) => Promise<string | undefined>,
+  ): void {
+    this.unauthorizedHandler = handler;
+  }
 
   async get<T>(path: string, accessToken?: string): Promise<T> {
     return this.request<T>('GET', path, undefined, accessToken);
@@ -20,6 +25,10 @@ export class ApiClient {
 
   async put<T>(path: string, body: unknown, accessToken?: string): Promise<T> {
     return this.request<T>('PUT', path, body, accessToken);
+  }
+
+  async patch<T>(path: string, body: unknown, accessToken?: string): Promise<T> {
+    return this.request<T>('PATCH', path, body, accessToken);
   }
 
   async delete<T>(path: string, body?: unknown, accessToken?: string): Promise<T> {
@@ -37,6 +46,19 @@ export class ApiClient {
         signal: controller.signal,
         ...(body !== undefined ? {body: JSON.stringify(body)} : {}),
       });
+
+      if (response.status === 401 && accessToken && this.unauthorizedHandler) {
+        const refreshedAccessToken = await this.unauthorizedHandler(accessToken);
+        if (refreshedAccessToken) {
+          const retriedResponse = await fetch(`${this.baseUrl}${path}`, {
+            method,
+            headers: this.headers(refreshedAccessToken, body !== undefined),
+            signal: controller.signal,
+            ...(body !== undefined ? {body: JSON.stringify(body)} : {}),
+          });
+          return this.parse<T>(retriedResponse);
+        }
+      }
 
       return this.parse<T>(response);
     } catch (error) {

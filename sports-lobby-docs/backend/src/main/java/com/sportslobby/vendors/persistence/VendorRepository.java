@@ -6,6 +6,7 @@ import com.sportslobby.vendors.domain.Vendor;
 import com.sportslobby.vendors.domain.VendorMemberRole;
 import com.sportslobby.vendors.domain.VendorMemberStatus;
 import com.sportslobby.vendors.domain.VendorVerificationSubmission;
+import com.sportslobby.vendors.domain.VerificationDocumentFile;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -32,9 +33,20 @@ public interface VendorRepository {
 
     Optional<VendorVerificationSubmission> findLatestSubmission(UUID vendorId);
 
-    void updateVendorVerificationStatus(UUID vendorId, VerificationStatus status, Instant approvedAt, Instant suspendedAt, Instant updatedAt);
+    List<VerificationDocumentFile> findSubmissionDocuments(UUID submissionId);
 
-    void reviewSubmission(UUID submissionId, String status, UUID adminUserId, String decisionReason, Instant reviewedAt);
+    void replaceSubmissionDocumentFile(UUID documentId, UUID oldFileId, UUID newFileId);
+
+    void updateVendorVerificationStatus(
+        UUID vendorId,
+        VerificationStatus status,
+        String statusReason,
+        Instant approvedAt,
+        Instant suspendedAt,
+        Instant updatedAt
+    );
+
+    boolean reviewSubmission(UUID submissionId, String status, UUID adminUserId, String decisionReason, Instant reviewedAt);
 
     void createAuditEvent(UUID id, UUID actorUserId, String action, String targetType, UUID targetId, String reason, Instant createdAt);
 }

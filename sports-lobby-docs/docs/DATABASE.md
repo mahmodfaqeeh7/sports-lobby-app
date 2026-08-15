@@ -37,6 +37,11 @@ For Google and future providers.
 - metadata needed for account linking
 - unique `(provider, provider_subject)`
 
+### user_legal_consents
+- immutable acceptance record per user, legal document type, and version
+- accepted timestamp
+- unique `(user_id, document_type, document_version)`
+
 ### refresh_sessions
 - `id`
 - `user_id`

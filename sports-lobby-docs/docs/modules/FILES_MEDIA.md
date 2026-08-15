@@ -34,6 +34,9 @@ Handle profile images, venue images, and private vendor verification documents u
 Background process may remove abandoned/unreferenced temporary uploads after a safe retention window.
 
 Current implementation note:
-- Vendor signup creates private `VENDOR_VERIFICATION_DOCUMENT` file metadata and signed upload instructions through an `ObjectStorageService` abstraction.
-- The local development storage adapter returns LocalStack-style signed URLs and does not store binary content in PostgreSQL.
+- Vendor signup and rejected-application resubmission create private `VENDOR_VERIFICATION_DOCUMENT` file metadata and signed upload instructions through an `ObjectStorageService` abstraction.
+- Onboarding accepts a business license, business logo, and facility image. They remain controlled submission assets during KYC; publishing them as a public venue gallery remains a distinct approved-vendor media operation.
+- The mobile client selects PDF/JPEG/PNG files, enforces a 5 MB limit, copies provider-backed files to a readable cache location, and uploads the raw bytes with progress to the returned signed `PUT` URL.
+- The local development storage adapter issues expiring, unguessable upload/download URLs and stores binary content under `SPORTS_LOBBY_LOCAL_FILE_STORAGE_PATH`; PostgreSQL stores metadata only.
+- Successful uploads change the file metadata from `PENDING_UPLOAD` to `UPLOADED`.
 - Private verification document downloads are authorized server-side before a signed download URL is returned.

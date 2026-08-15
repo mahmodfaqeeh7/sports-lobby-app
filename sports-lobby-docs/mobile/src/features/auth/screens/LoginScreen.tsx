@@ -79,6 +79,8 @@ export function LoginScreen({
           password,
           title: 'Confirm your phone to continue',
           otpAlreadySent: false,
+          accessToken: response.tokens.accessToken,
+          pendingSession: toSession(response),
         });
         return;
       }
@@ -88,14 +90,6 @@ export function LoginScreen({
     } finally {
       setBusy(false);
     }
-  };
-
-  const showGoogleUnavailable = () => {
-    setNotice({
-      title: 'Google sign-in is coming soon',
-      message: 'Use your verified phone number and password for now.',
-      tone: 'info',
-    });
   };
 
   return (
@@ -127,7 +121,7 @@ export function LoginScreen({
             <SocialAuthButton
               label="Sign in with Google"
               icon={<GoogleLogo size={25} />}
-              onPress={showGoogleUnavailable}
+              onPress={() => onNavigate('googleAuth')}
             />
             <AuthActionLinks
               items={[

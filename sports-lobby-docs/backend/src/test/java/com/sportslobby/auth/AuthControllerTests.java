@@ -2,6 +2,7 @@ package com.sportslobby.auth;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -10,6 +11,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sportslobby.auth.domain.OtpPurpose;
 import com.sportslobby.auth.integration.OtpSender;
 import com.sportslobby.auth.integration.PasswordResetSender;
+import com.sportslobby.auth.integration.GoogleIdentity;
+import com.sportslobby.auth.integration.GoogleIdentityVerifier;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -66,6 +69,54 @@ class AuthControllerTests {
         );
         assertThat(passwordHash).isNotEqualTo("StrongPass123");
         assertThat(passwordHash).startsWith("$2");
+        Integer legalConsentCount = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM user_legal_consents WHERE user_id = ?",
+            Integer.class,
+            java.util.UUID.fromString(response.path("user").path("id").asText())
+        );
+        assertThat(legalConsentCount).isEqualTo(2);
+    }
+
+    @Test
+    void unverifiedUserCanCorrectPhoneWithFreshAuthenticatedSession() throws Exception {
+        JsonNode response = register("+962790000011", "player11@example.com", "StrongPass123");
+        String accessToken = response.path("tokens").path("accessToken").asText();
+
+        mockMvc.perform(patch("/api/v1/me/unverified-phone")
+                .header("Authorization", "Bearer " + accessToken)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(json(Map.of(
+                    "phoneE164", "+962790000012",
+                    "currentPassword", "StrongPass123"
+                ))))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.phoneE164").value("+962790000012"));
+
+        assertThat(otpSender.lastPhone).isEqualTo("+962790000012");
+        Integer updated = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM users WHERE phone_e164 = '+962790000012' AND phone_verified_at IS NULL",
+            Integer.class
+        );
+        assertThat(updated).isEqualTo(1);
+    }
+
+    @Test
+    void googleSignInCreatesExternalIdentityAndStillRequiresPhoneVerification() throws Exception {
+        JsonNode response = postJson("/api/v1/auth/google", Map.of(
+            "idToken", "valid-google-token",
+            "phoneE164", "+962790000013",
+            "acceptedTerms", true,
+            "acceptedPrivacy", true,
+            "deviceLabel", "JUnit Google"
+        ), 200);
+
+        assertThat(response.path("user").path("email").asText()).isEqualTo("google@example.com");
+        assertThat(response.path("user").path("phoneVerified").asBoolean()).isFalse();
+        Integer identities = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM external_identities WHERE provider = 'GOOGLE'",
+            Integer.class
+        );
+        assertThat(identities).isEqualTo(1);
     }
 
     @Test
@@ -79,7 +130,9 @@ class AuthControllerTests {
                     "lastName", "Player",
                     "email", "second@example.com",
                     "phoneE164", "+962790000002",
-                    "password", "StrongPass123"
+                    "password", "StrongPass123",
+                    "acceptedTerms", true,
+                    "acceptedPrivacy", true
                 ))))
             .andExpect(status().isConflict())
             .andExpect(jsonPath("$.error.code").value("CONFLICT"));
@@ -232,7 +285,9 @@ class AuthControllerTests {
             "email", email,
             "phoneE164", phoneE164,
             "password", password,
-            "deviceLabel", "JUnit"
+            "deviceLabel", "JUnit",
+            "acceptedTerms", true,
+            "acceptedPrivacy", true
         ), 201);
     }
 
@@ -263,6 +318,12 @@ class AuthControllerTests {
         @Primary
         CapturingPasswordResetSender capturingPasswordResetSender() {
             return new CapturingPasswordResetSender();
+        }
+
+        @Bean
+        @Primary
+        GoogleIdentityVerifier testGoogleIdentityVerifier() {
+            return idToken -> new GoogleIdentity("google-subject", "google@example.com", "Google", "Player");
         }
     }
 

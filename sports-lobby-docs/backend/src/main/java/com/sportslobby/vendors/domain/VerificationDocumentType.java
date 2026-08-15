@@ -4,5 +4,6 @@ public enum VerificationDocumentType {
     BUSINESS_LICENSE,
     OWNER_ID,
     FACILITY_PHOTO,
+    BUSINESS_LOGO,
     OTHER
 }

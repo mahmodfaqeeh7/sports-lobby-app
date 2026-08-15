@@ -1,6 +1,7 @@
 apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
+apply from: project(':react-native-config').projectDir.getPath() + "/dotenv.gradle"
 
 /**
  * This is the configuration block to customize your React Native Android app.
@@ -72,6 +73,15 @@ def enableProguardInReleaseBuilds = false
  */
 def jscFlavor = 'io.github.react-native-community:jsc-android:2026004.+'
 
+def googleMapsApiKey = project.findProperty("SPORTS_LOBBY_GOOGLE_MAPS_API_KEY")
+    ?: System.getenv("SPORTS_LOBBY_GOOGLE_MAPS_API_KEY")
+    ?: ""
+def releaseKeystorePath = System.getenv("SPORTS_LOBBY_ANDROID_KEYSTORE_PATH")
+def releaseKeystorePassword = System.getenv("SPORTS_LOBBY_ANDROID_KEYSTORE_PASSWORD")
+def releaseKeyAlias = System.getenv("SPORTS_LOBBY_ANDROID_KEY_ALIAS")
+def releaseKeyPassword = System.getenv("SPORTS_LOBBY_ANDROID_KEY_PASSWORD")
+def hasReleaseSigning = releaseKeystorePath && releaseKeystorePassword && releaseKeyAlias && releaseKeyPassword
+
 android {
     ndkVersion rootProject.ext.ndkVersion
     buildToolsVersion rootProject.ext.buildToolsVersion
@@ -84,6 +94,14 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0"
+        manifestPlaceholders.googleMapsApiKey = googleMapsApiKey
+        manifestPlaceholders.usesCleartextTraffic = "false"
+        externalNativeBuild {
+            cmake {
+                // Keep generated object paths below Windows' legacy MAX_PATH limit.
+                arguments "-DCMAKE_OBJECT_PATH_MAX=180"
+            }
+        }
     }
     signingConfigs {
         debug {
@@ -92,17 +110,36 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        if (hasReleaseSigning) {
+            release {
+                storeFile file(releaseKeystorePath)
+                storePassword releaseKeystorePassword
+                keyAlias releaseKeyAlias
+                keyPassword releaseKeyPassword
+            }
+        }
     }
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
+            manifestPlaceholders.usesCleartextTraffic = "true"
         }
         release {
-            // Caution! In production, you need to generate your own keystore file.
-            // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.debug
+            if (hasReleaseSigning) {
+                signingConfig signingConfigs.release
+            }
+            manifestPlaceholders.usesCleartextTraffic = "false"
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
+        }
+    }
+    externalNativeBuild {
+        cmake {
+            // Use a short, project-specific staging path so native dependencies build on Windows.
+            buildStagingDirectory new File(
+                gradle.gradleUserHomeDir,
+                "cxx/${Integer.toHexString(rootProject.projectDir.absolutePath.hashCode())}",
+            )
         }
     }
 }

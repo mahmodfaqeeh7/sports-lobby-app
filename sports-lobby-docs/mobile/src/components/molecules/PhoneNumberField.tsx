@@ -126,7 +126,7 @@ export function PhoneNumberField({
           <Phone color={colors.icon} size={22} strokeWidth={1.8} />
         ) : null}
         <TextInput
-          accessibilityLabel={showLabel ? undefined : label}
+          accessibilityLabel={label}
           keyboardType="phone-pad"
           onBlur={() => {
             setFocused(false);

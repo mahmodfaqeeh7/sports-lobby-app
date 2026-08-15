@@ -1,5 +1,5 @@
 import React, {useEffect, useMemo, useState} from 'react';
-import {Pressable, StyleSheet, Text, View} from 'react-native';
+import {ActivityIndicator, Pressable, StyleSheet, Text, View} from 'react-native';
 import {AuthScreen} from '../features/auth/screens/AuthScreen';
 import {AdminReviewScreen} from '../features/admin/screens/AdminReviewScreen';
 import {ExploreScreen} from '../features/player/screens/ExploreScreen';
@@ -17,7 +17,7 @@ type TabItem = {
 };
 
 export function SportsLobbyApp(): React.JSX.Element {
-  const {session, setSession, clearSession} = useSession();
+  const {session, isHydrating, setSession, clearSession} = useSession();
   const [activeTab, setActiveTab] = useState<TabKey>('explore');
 
   const tabs = useMemo<TabItem[]>(() => {
@@ -43,6 +43,14 @@ export function SportsLobbyApp(): React.JSX.Element {
       setActiveTab(tabs[0].key);
     }
   }, [activeTab, tabs]);
+
+  if (isHydrating) {
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator color={colors.brand} size="large" />
+      </View>
+    );
+  }
 
   if (!session) {
     return <AuthScreen onAuthenticated={setSession} />;
@@ -118,5 +126,11 @@ const styles = StyleSheet.create({
   },
   indicatorSelected: {
     backgroundColor: colors.accent,
+  },
+  loading: {
+    alignItems: 'center',
+    backgroundColor: colors.background,
+    flex: 1,
+    justifyContent: 'center',
   },
 });

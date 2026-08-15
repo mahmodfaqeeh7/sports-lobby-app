@@ -26,7 +26,7 @@ public record AuthProperties(
             refreshTokenTtl = Duration.ofDays(30);
         }
         if (otp == null) {
-            otp = new Otp(Duration.ofMinutes(5), Duration.ofSeconds(60), 5);
+            otp = new Otp(Duration.ofMinutes(5), Duration.ofSeconds(60), 5, false);
         }
         if (passwordReset == null) {
             passwordReset = new PasswordReset(Duration.ofMinutes(15));
@@ -36,7 +36,8 @@ public record AuthProperties(
     public record Otp(
         Duration ttl,
         Duration resendCooldown,
-        @Positive int maxAttempts
+        @Positive int maxAttempts,
+        boolean testCodeEnabled
     ) {
         public Otp {
             if (ttl == null) {

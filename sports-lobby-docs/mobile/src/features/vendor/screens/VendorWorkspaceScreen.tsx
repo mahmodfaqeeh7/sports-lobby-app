@@ -19,7 +19,12 @@ import {showError} from '../../auth/utils/authErrors';
 import {Court, Lobby, SaveLobbyRequest, courtsApi, lobbiesApi} from '../../lobbies/api';
 import {Sport, sportsApi} from '../../sports/api';
 import {Venue, venuesApi} from '../../venues/api';
-import {Vendor, vendorApi} from '../api';
+import {Vendor, VendorKyc, vendorApi} from '../api';
+import {VendorKycStatusPanel} from '../components/VendorKycStatusPanel';
+import {
+  FacilityLocationField,
+  FacilityLocationValue,
+} from '../../vendor-onboarding/components/FacilityLocationField';
 
 type VendorWorkspaceScreenProps = {
   session: AuthenticatedSession;
@@ -30,6 +35,7 @@ export function VendorWorkspaceScreen({session}: VendorWorkspaceScreenProps): Re
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<{title?: string; message?: string; tone?: 'info' | 'success' | 'error' | 'warning'}>({});
   const [vendor, setVendor] = useState<Vendor>();
+  const [kyc, setKyc] = useState<VendorKyc>();
   const [sports, setSports] = useState<Sport[]>([]);
   const [venues, setVenues] = useState<Venue[]>([]);
   const [courts, setCourts] = useState<Court[]>([]);
@@ -39,11 +45,12 @@ export function VendorWorkspaceScreen({session}: VendorWorkspaceScreenProps): Re
   const [selectedSportId, setSelectedSportId] = useState('');
   const [selectedLobbyId, setSelectedLobbyId] = useState('');
 
-  const [venueName, setVenueName] = useState('Abdoun Arena');
-  const [city, setCity] = useState('Amman');
-  const [area, setArea] = useState('Abdoun');
-  const [addressLine, setAddressLine] = useState('Abdoun main street');
-  const [contactPhone, setContactPhone] = useState('+962790000100');
+  const [venueName, setVenueName] = useState('');
+  const [city, setCity] = useState('');
+  const [area, setArea] = useState('');
+  const [addressLine, setAddressLine] = useState('');
+  const [contactPhone, setContactPhone] = useState('');
+  const [venueLocation, setVenueLocation] = useState<FacilityLocationValue>({latitude: '', longitude: ''});
   const [courtName, setCourtName] = useState('Court 1');
   const [minPlayers, setMinPlayers] = useState('8');
   const [maxPlayers, setMaxPlayers] = useState('12');
@@ -64,13 +71,14 @@ export function VendorWorkspaceScreen({session}: VendorWorkspaceScreenProps): Re
   const load = useCallback(async () => {
     setBusy(true);
     try {
-      const [nextVendor, nextSports, nextVenues, nextLobbies] = await Promise.all([
-        vendorApi.me(apiClient, session.tokens.accessToken),
+      const [nextKyc, nextSports, nextVenues, nextLobbies] = await Promise.all([
+        vendorApi.kyc(apiClient, session.tokens.accessToken),
         sportsApi.list(apiClient),
         venuesApi.listMine(apiClient, session.tokens.accessToken),
         lobbiesApi.listMine(apiClient, session.tokens.accessToken),
       ]);
-      setVendor(nextVendor);
+      setKyc(nextKyc);
+      setVendor(nextKyc.vendor);
       setSports(nextSports);
       setVenues(nextVenues);
       setLobbies(nextLobbies);
@@ -107,6 +115,14 @@ export function VendorWorkspaceScreen({session}: VendorWorkspaceScreenProps): Re
   const createVenue = async () => {
     setBusy(true);
     try {
+      if (!venueName.trim() || !city.trim() || !addressLine.trim() || !contactPhone.trim()) {
+        throw new Error('Add the venue name, city, address, and contact phone.');
+      }
+      const latitude = Number(venueLocation.latitude);
+      const longitude = Number(venueLocation.longitude);
+      if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90 || !Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
+        throw new Error('Choose a valid venue location on the map.');
+      }
       const created = await venuesApi.create(apiClient, session.tokens.accessToken, {
         name: venueName,
         description: 'Sports venue managed from mobile.',
@@ -114,13 +130,19 @@ export function VendorWorkspaceScreen({session}: VendorWorkspaceScreenProps): Re
         city,
         area,
         addressLine,
-        latitude: 31.9501,
-        longitude: 35.9106,
+        latitude,
+        longitude,
         timezone: 'Asia/Amman',
         contactPhone,
       });
       setVenues(current => [created, ...current]);
       setSelectedVenueId(created.id);
+      setVenueName('');
+      setCity('');
+      setArea('');
+      setAddressLine('');
+      setContactPhone('');
+      setVenueLocation({latitude: '', longitude: ''});
       setNotice({title: 'Venue created', message: 'Add courts before creating lobbies for players.', tone: 'success'});
     } catch (error) {
       showError(error, setNotice);
@@ -215,6 +237,13 @@ export function VendorWorkspaceScreen({session}: VendorWorkspaceScreenProps): Re
       subtitle="Set up venues, courts, and games for players."
       action={vendor ? <Badge label={vendor.verificationStatus} tone={approved ? 'success' : 'warning'} /> : undefined}>
       <Notice title={notice.title} message={notice.message} tone={notice.tone} onDismiss={() => setNotice({})} />
+      {kyc ? (
+        <VendorKycStatusPanel
+          kyc={kyc}
+          accessToken={session.tokens.accessToken}
+          onRefresh={load}
+        />
+      ) : null}
       {vendor && !approved ? (
         <Notice
           title="Publishing locked"
@@ -240,11 +269,12 @@ export function VendorWorkspaceScreen({session}: VendorWorkspaceScreenProps): Re
   function renderVenues(): React.JSX.Element {
     return (
       <View style={styles.stack}>
-        <FormSection title="Add Venue" subtitle="Create the place where players will meet.">
+        <FormSection title="Add Venue" subtitle="Each venue has its own address and exact map pin.">
           <AppTextField label="Venue name" value={venueName} onChangeText={setVenueName} />
           <AppTextField label="City" value={city} onChangeText={setCity} />
           <AppTextField label="Area" value={area} onChangeText={setArea} />
           <AppTextField label="Address" value={addressLine} onChangeText={setAddressLine} />
+          <FacilityLocationField value={venueLocation} onChange={setVenueLocation} />
           <AppTextField label="Contact phone" value={contactPhone} onChangeText={setContactPhone} keyboardType="phone-pad" />
           <AppButton label="Create venue" onPress={createVenue} disabled={busy} />
         </FormSection>

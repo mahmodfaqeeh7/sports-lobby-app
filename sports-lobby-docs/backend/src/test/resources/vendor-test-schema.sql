@@ -21,6 +21,7 @@ CREATE TABLE vendors (
     venue_count_estimate INTEGER,
     opening_hours TEXT,
     verification_status VARCHAR(30) NOT NULL,
+    status_reason VARCHAR(1000),
     approved_at TIMESTAMP,
     suspended_at TIMESTAMP,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,

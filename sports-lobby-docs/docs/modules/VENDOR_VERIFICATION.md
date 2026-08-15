@@ -60,4 +60,6 @@ Current implementation note:
 - Admin review endpoints are `GET /api/v1/admin/vendors/pending`, `POST /api/v1/admin/vendors/{vendorId}/approve`, and `POST /api/v1/admin/vendors/{vendorId}/reject`.
 - Rejection requires a reason. Approval/rejection records reviewer, timestamp, reason, and an audit event.
 - Vendor-owned document downloads use `GET /api/v1/vendor/verification-documents/{fileId}/download`; admin document downloads use `GET /api/v1/admin/vendors/verification-documents/{fileId}/download`.
-- Resubmission after rejection is still future work.
+- Pending uploads are returned by `GET /api/v1/vendor/kyc`. The vendor can request a replacement signed URL with `POST /api/v1/vendor/verification-documents/{fileId}/upload-url`, upload or replace the file, then call `POST /api/v1/vendor/verification-documents/{fileId}/complete` so object size/type are verified server-side.
+- Rejected vendors can submit replacement evidence through `POST /api/v1/vendor/verification/resubmit`; earlier decisions and evidence remain in the audit history.
+- Approval is rejected until a business license exists and every document in the current submission has verified `UPLOADED` status.

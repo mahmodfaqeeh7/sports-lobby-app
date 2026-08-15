@@ -1,5 +1,9 @@
 package com.sportslobby.vendors.persistence;
 
+import com.sportslobby.files.domain.FileAccessLevel;
+import com.sportslobby.files.domain.FilePurpose;
+import com.sportslobby.files.domain.FileRecord;
+import com.sportslobby.files.domain.FileUploadStatus;
 import com.sportslobby.vendors.domain.SubmissionStatus;
 import com.sportslobby.vendors.domain.VerificationDocumentType;
 import com.sportslobby.vendors.domain.VerificationStatus;
@@ -7,6 +11,7 @@ import com.sportslobby.vendors.domain.Vendor;
 import com.sportslobby.vendors.domain.VendorMemberRole;
 import com.sportslobby.vendors.domain.VendorMemberStatus;
 import com.sportslobby.vendors.domain.VendorVerificationSubmission;
+import com.sportslobby.vendors.domain.VerificationDocumentFile;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -33,9 +38,9 @@ public class JdbcVendorRepository implements VendorRepository {
             INSERT INTO vendors (
                 id, owner_user_id, business_name, contact_phone, contact_email, country_code, city, area,
                 address_line, latitude, longitude, supported_sports, venue_count_estimate, opening_hours,
-                verification_status, approved_at, suspended_at, created_at, updated_at
+                verification_status, status_reason, approved_at, suspended_at, created_at, updated_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             vendor.id(),
             vendor.ownerUserId(),
@@ -52,6 +57,7 @@ public class JdbcVendorRepository implements VendorRepository {
             vendor.venueCountEstimate(),
             vendor.openingHours(),
             vendor.verificationStatus().name(),
+            vendor.statusReason(),
             toTimestamp(vendor.approvedAt()),
             toTimestamp(vendor.suspendedAt()),
             Timestamp.from(vendor.createdAt()),
@@ -174,7 +180,7 @@ public class JdbcVendorRepository implements VendorRepository {
             """
             SELECT id, owner_user_id, business_name, contact_phone, contact_email, country_code, city, area,
                    address_line, latitude, longitude, supported_sports, venue_count_estimate, opening_hours,
-                   verification_status, approved_at, suspended_at, created_at, updated_at
+                   verification_status, status_reason, approved_at, suspended_at, created_at, updated_at
             FROM vendors
             WHERE verification_status = 'PENDING'
             ORDER BY created_at ASC
@@ -203,9 +209,62 @@ public class JdbcVendorRepository implements VendorRepository {
     }
 
     @Override
+    public List<VerificationDocumentFile> findSubmissionDocuments(UUID submissionId) {
+        return jdbcTemplate.query(
+            """
+            SELECT d.id AS document_id, d.submission_id, d.document_type, d.created_at AS document_created_at,
+                   f.id AS file_id, f.owner_user_id, f.owner_vendor_id, f.purpose, f.storage_provider,
+                   f.bucket_name, f.object_key, f.original_file_name, f.content_type, f.size_bytes,
+                   f.access_level, f.upload_status, f.created_at AS file_created_at, f.updated_at AS file_updated_at
+            FROM vendor_verification_documents d
+            JOIN files f ON f.id = d.file_id
+            WHERE d.submission_id = ?
+            ORDER BY d.created_at ASC
+            """,
+            (rs, rowNum) -> new VerificationDocumentFile(
+                rs.getObject("document_id", UUID.class),
+                rs.getObject("submission_id", UUID.class),
+                VerificationDocumentType.valueOf(rs.getString("document_type")),
+                new FileRecord(
+                    rs.getObject("file_id", UUID.class),
+                    rs.getObject("owner_user_id", UUID.class),
+                    rs.getObject("owner_vendor_id", UUID.class),
+                    FilePurpose.valueOf(rs.getString("purpose")),
+                    rs.getString("storage_provider"),
+                    rs.getString("bucket_name"),
+                    rs.getString("object_key"),
+                    rs.getString("original_file_name"),
+                    rs.getString("content_type"),
+                    rs.getLong("size_bytes"),
+                    FileAccessLevel.valueOf(rs.getString("access_level")),
+                    FileUploadStatus.valueOf(rs.getString("upload_status")),
+                    toInstant(rs.getTimestamp("file_created_at")),
+                    toInstant(rs.getTimestamp("file_updated_at"))
+                ),
+                toInstant(rs.getTimestamp("document_created_at"))
+            ),
+            submissionId
+        );
+    }
+
+    @Override
+    public void replaceSubmissionDocumentFile(UUID documentId, UUID oldFileId, UUID newFileId) {
+        int updated = jdbcTemplate.update(
+            "UPDATE vendor_verification_documents SET file_id = ? WHERE id = ? AND file_id = ?",
+            newFileId,
+            documentId,
+            oldFileId
+        );
+        if (updated != 1) {
+            throw new IllegalStateException("Verification document changed while its upload was being replaced.");
+        }
+    }
+
+    @Override
     public void updateVendorVerificationStatus(
         UUID vendorId,
         VerificationStatus status,
+        String statusReason,
         Instant approvedAt,
         Instant suspendedAt,
         Instant updatedAt
@@ -213,10 +272,11 @@ public class JdbcVendorRepository implements VendorRepository {
         jdbcTemplate.update(
             """
             UPDATE vendors
-            SET verification_status = ?, approved_at = ?, suspended_at = ?, updated_at = ?
+            SET verification_status = ?, status_reason = ?, approved_at = ?, suspended_at = ?, updated_at = ?
             WHERE id = ?
             """,
             status.name(),
+            statusReason,
             toTimestamp(approvedAt),
             toTimestamp(suspendedAt),
             Timestamp.from(updatedAt),
@@ -225,8 +285,8 @@ public class JdbcVendorRepository implements VendorRepository {
     }
 
     @Override
-    public void reviewSubmission(UUID submissionId, String status, UUID adminUserId, String decisionReason, Instant reviewedAt) {
-        jdbcTemplate.update(
+    public boolean reviewSubmission(UUID submissionId, String status, UUID adminUserId, String decisionReason, Instant reviewedAt) {
+        return jdbcTemplate.update(
             """
             UPDATE vendor_verification_submissions
             SET status = ?, reviewed_by_admin_user_id = ?, decision_reason = ?, reviewed_at = ?, updated_at = ?
@@ -238,7 +298,7 @@ public class JdbcVendorRepository implements VendorRepository {
             Timestamp.from(reviewedAt),
             Timestamp.from(reviewedAt),
             submissionId
-        );
+        ) == 1;
     }
 
     @Override
@@ -263,7 +323,7 @@ public class JdbcVendorRepository implements VendorRepository {
             """
             SELECT id, owner_user_id, business_name, contact_phone, contact_email, country_code, city, area,
                    address_line, latitude, longitude, supported_sports, venue_count_estimate, opening_hours,
-                   verification_status, approved_at, suspended_at, created_at, updated_at
+                   verification_status, status_reason, approved_at, suspended_at, created_at, updated_at
             FROM vendors
             """ + whereClause,
             this::mapVendor,
@@ -288,6 +348,7 @@ public class JdbcVendorRepository implements VendorRepository {
             (Integer) rs.getObject("venue_count_estimate"),
             rs.getString("opening_hours"),
             VerificationStatus.valueOf(rs.getString("verification_status")),
+            rs.getString("status_reason"),
             toInstant(rs.getTimestamp("approved_at")),
             toInstant(rs.getTimestamp("suspended_at")),
             toInstant(rs.getTimestamp("created_at")),

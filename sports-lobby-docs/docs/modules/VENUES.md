@@ -24,6 +24,8 @@ Represent a physical sports facility managed by a vendor.
 ## Rules
 - Suspended/inactive venue cannot host new public lobbies.
 - Location coordinates and structured city fields coexist.
+- Vendor-facing forms collect exact coordinates through a map pin picker. Manual latitude/longitude entry is not exposed; current-device location is only an optional map-centering shortcut.
+- Every venue has its own independently selected map pin; vendor signup does not create or assume a single business-wide facility location.
 - Venue timezone must be explicit, not inferred from phone.
 
 ## Future
