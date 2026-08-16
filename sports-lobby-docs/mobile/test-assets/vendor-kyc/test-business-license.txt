@@ -1,0 +1,17 @@
+PLAYLOBBY TEST BUSINESS LICENSE
+
+TEST DOCUMENT - NOT A REAL GOVERNMENT OR BUSINESS RECORD
+
+Business legal name: PlayLobby Test Sports Center LLC
+Trading name: Test Sports Center
+Registration number: TEST-KYC-2026-0001
+Country: Jordan
+City: Amman
+Business activity: Sports facility operations
+Issue date: 2026-01-01
+Expiry date: 2027-01-01
+
+Authorized representative: Test Vendor
+Verification purpose: Local development and vendor onboarding testing
+
+This generated document contains no real personal or legal information.

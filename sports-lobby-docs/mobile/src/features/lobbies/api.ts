@@ -8,6 +8,9 @@ export type Court = {
   status: string;
   defaultMinPlayers?: number;
   defaultMaxPlayers?: number;
+  imageFileId?: string;
+  imageUrl?: string;
+  imageUrlExpiresAt?: string;
   sportIds: string[];
 };
 
@@ -15,8 +18,17 @@ export type Lobby = {
   id: string;
   vendorId: string;
   venueId: string;
+  venueName?: string;
+  venueCity?: string;
+  venueArea?: string;
+  venueAddress?: string;
   courtId: string;
+  courtName?: string;
+  courtImageUrl?: string;
+  courtImageUrlExpiresAt?: string;
   sportId: string;
+  sportCode?: string;
+  sportName?: string;
   status: string;
   startsAt: string;
   endsAt: string;
@@ -40,7 +52,21 @@ export type CreateCourtRequest = {
   description?: string;
   defaultMinPlayers?: number;
   defaultMaxPlayers?: number;
+  imageFileId: string;
   sportIds: string[];
+};
+
+export type CourtImageUpload = {
+  fileId: string;
+  uploadUrl: string;
+  method: string;
+  headers: Record<string, string>;
+  expiresAt: string;
+};
+
+export type CourtImageUploadStatus = {
+  fileId: string;
+  uploadStatus: string;
 };
 
 export type SaveLobbyRequest = {
@@ -71,6 +97,16 @@ function query(params: Record<string, string | undefined>): string {
 }
 
 export const courtsApi = {
+  createImageUpload(
+    client: ApiClient,
+    accessToken: string,
+    request: {fileName: string; contentType: string; sizeBytes: number},
+  ) {
+    return client.post<CourtImageUpload>('/vendor/court-images/upload-url', request, accessToken);
+  },
+  completeImageUpload(client: ApiClient, accessToken: string, fileId: string) {
+    return client.post<CourtImageUploadStatus>(`/vendor/court-images/${fileId}/complete`, undefined, accessToken);
+  },
   create(client: ApiClient, accessToken: string, venueId: string, request: CreateCourtRequest) {
     return client.post<Court>(`/vendor/venues/${venueId}/courts`, request, accessToken);
   },
@@ -92,7 +128,10 @@ export const lobbiesApi = {
   listMine(client: ApiClient, accessToken: string) {
     return client.get<Lobby[]>('/vendor/lobbies', accessToken);
   },
-  discover(client: ApiClient, filters: {sportId?: string; city?: string}) {
+  discover(client: ApiClient, filters: {sportId?: string; city?: string; search?: string}) {
     return client.get<Lobby[]>(`/lobbies${query(filters)}`);
+  },
+  get(client: ApiClient, lobbyId: string) {
+    return client.get<Lobby>(`/lobbies/${lobbyId}`);
   },
 };

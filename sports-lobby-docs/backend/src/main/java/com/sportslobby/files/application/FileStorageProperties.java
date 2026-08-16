@@ -11,9 +11,11 @@ public record FileStorageProperties(
     @NotBlank String provider,
     @NotBlank String bucket,
     String vendorVerificationPrefix,
+    String courtImagesPrefix,
     Duration signedUploadTtl,
     Duration signedDownloadTtl,
     long maxVendorVerificationDocumentBytes,
+    long maxCourtImageBytes,
     String localBaseUrl,
     String localStoragePath
 ) {
@@ -28,6 +30,9 @@ public record FileStorageProperties(
         if (vendorVerificationPrefix == null || vendorVerificationPrefix.isBlank()) {
             vendorVerificationPrefix = "vendor-verification";
         }
+        if (courtImagesPrefix == null || courtImagesPrefix.isBlank()) {
+            courtImagesPrefix = "court-images";
+        }
         if (signedUploadTtl == null) {
             signedUploadTtl = Duration.ofMinutes(10);
         }
@@ -36,6 +41,9 @@ public record FileStorageProperties(
         }
         if (maxVendorVerificationDocumentBytes <= 0) {
             maxVendorVerificationDocumentBytes = 5 * 1024 * 1024;
+        }
+        if (maxCourtImageBytes <= 0) {
+            maxCourtImageBytes = 5 * 1024 * 1024;
         }
         if (localBaseUrl == null || localBaseUrl.isBlank()) {
             localBaseUrl = "http://localhost:8080";

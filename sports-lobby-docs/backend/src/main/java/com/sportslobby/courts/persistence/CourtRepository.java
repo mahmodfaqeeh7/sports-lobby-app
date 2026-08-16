@@ -13,4 +13,6 @@ public interface CourtRepository {
     Optional<Court> findById(UUID courtId);
 
     boolean supportsSport(UUID courtId, UUID sportId);
+
+    boolean isImageInUse(UUID imageFileId);
 }

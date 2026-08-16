@@ -1,7 +1,8 @@
 AGENTS.md
 FILE_MANIFEST.txt
 README.md
-backend/.env.example
+backend/.env.local.example
+backend/.env.production.example
 backend/docker-compose.yml
 backend/pom.xml
 backend/src/main/java/com/sportslobby/SportsLobbyApplication.java

@@ -79,6 +79,14 @@ Email: admin@sports-lobby.local
 Role: ADMIN
 Phone verified: yes
 
+Additional local demo accounts (created when SPORTS_LOBBY_DEMO_DATA_ENABLED=true):
+Player: +962790000001 / Demo123!
+Approved vendor: +962790000002 / Demo123!
+Pending vendor: +962790000003 / Demo123!
+
+The local initializer also creates three venues, three courts with real demo images,
+three future lobbies, reservations, and complete pending-vendor KYC documents.
+
 Use this account in the mobile login screen. After login, the Admin tab appears
 and can approve/reject pending vendors.
 
@@ -217,4 +225,3 @@ IMPORTANT CURRENT NOTES
 - Vendor approval is required before publishing public lobbies.
 - If a lobby publish fails with "court does not support this sport", make sure the selected court has that sport enabled.
 - If mobile cannot reach backend on Android, use 10.0.2.2 instead of localhost. The API client already does this.
-

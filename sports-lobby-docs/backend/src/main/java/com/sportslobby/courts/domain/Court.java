@@ -11,6 +11,7 @@ public record Court(
     String status,
     Integer defaultMinPlayers,
     Integer defaultMaxPlayers,
+    UUID imageFileId,
     List<UUID> sportIds
 ) {
 }

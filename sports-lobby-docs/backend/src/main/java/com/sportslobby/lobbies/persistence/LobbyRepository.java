@@ -1,6 +1,7 @@
 package com.sportslobby.lobbies.persistence;
 
 import com.sportslobby.lobbies.domain.Lobby;
+import com.sportslobby.lobbies.domain.LobbyDiscoveryItem;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -15,7 +16,9 @@ public interface LobbyRepository {
 
     List<Lobby> findByVendorId(UUID vendorId);
 
-    List<Lobby> discover(UUID sportId, String city, Instant from, Instant to);
+    List<LobbyDiscoveryItem> discover(UUID sportId, String city, String search, Instant from, Instant to);
+
+    Optional<LobbyDiscoveryItem> findDiscoverableById(UUID lobbyId);
 
     boolean hasCourtOverlap(UUID courtId, Instant startsAt, Instant endsAt, UUID exceptLobbyId);
 

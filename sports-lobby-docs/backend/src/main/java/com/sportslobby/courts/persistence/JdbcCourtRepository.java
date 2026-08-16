@@ -20,8 +20,10 @@ public class JdbcCourtRepository implements CourtRepository {
     public void create(Court court) {
         jdbcTemplate.update(
             """
-            INSERT INTO courts (id, venue_id, name, description, status, default_min_players, default_max_players)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO courts (
+                id, venue_id, name, description, status, default_min_players, default_max_players, image_file_id
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,
             court.id(),
             court.venueId(),
@@ -29,7 +31,8 @@ public class JdbcCourtRepository implements CourtRepository {
             court.description(),
             court.status(),
             court.defaultMinPlayers(),
-            court.defaultMaxPlayers()
+            court.defaultMaxPlayers(),
+            court.imageFileId()
         );
         court.sportIds().forEach(sportId -> jdbcTemplate.update(
             "INSERT INTO court_sports (court_id, sport_id) VALUES (?, ?)",
@@ -63,9 +66,19 @@ public class JdbcCourtRepository implements CourtRepository {
         return count != null && count > 0;
     }
 
+    @Override
+    public boolean isImageInUse(UUID imageFileId) {
+        Integer count = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM courts WHERE image_file_id = ?",
+            Integer.class,
+            imageFileId
+        );
+        return count != null && count > 0;
+    }
+
     private String selectSql() {
         return """
-            SELECT id, venue_id, name, description, status, default_min_players, default_max_players
+            SELECT id, venue_id, name, description, status, default_min_players, default_max_players, image_file_id
             FROM courts
             """;
     }
@@ -85,6 +98,7 @@ public class JdbcCourtRepository implements CourtRepository {
             rs.getString("status"),
             (Integer) rs.getObject("default_min_players"),
             (Integer) rs.getObject("default_max_players"),
+            rs.getObject("image_file_id", UUID.class),
             sportIds
         );
     }

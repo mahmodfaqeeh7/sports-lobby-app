@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <rect width="1024" height="1024" fill="#f7faf8"/>
+  <rect x="96" y="96" width="832" height="832" rx="96" fill="#00ad45"/>
+  <circle cx="512" cy="430" r="210" fill="#ffffff"/>
+  <path d="M405 270h145c116 0 196 61 196 160 0 102-80 164-196 164h-55v158h-90V270zm90 80v165h53c69 0 105-29 105-84 0-53-36-81-105-81h-53z" fill="#003a2b"/>
+  <text x="512" y="846" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="58" font-weight="700" fill="#ffffff">TEST SPORTS</text>
+</svg>

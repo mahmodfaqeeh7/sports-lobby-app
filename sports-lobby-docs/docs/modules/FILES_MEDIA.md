@@ -6,6 +6,7 @@ Handle profile images, venue images, and private vendor verification documents u
 ## File categories
 - player profile image;
 - venue gallery/cover image;
+- public court image used by lobby discovery and reservation context;
 - vendor business/license verification document;
 - future report/dispute attachment.
 
@@ -40,3 +41,4 @@ Current implementation note:
 - The local development storage adapter issues expiring, unguessable upload/download URLs and stores binary content under `SPORTS_LOBBY_LOCAL_FILE_STORAGE_PATH`; PostgreSQL stores metadata only.
 - Successful uploads change the file metadata from `PENDING_UPLOAD` to `UPLOADED`.
 - Private verification document downloads are authorized server-side before a signed download URL is returned.
+- Approved vendors upload court JPEG/PNG/WebP images through the same storage abstraction. Court images use `PUBLIC` metadata, are associated to one court, and are returned to clients through controlled signed display URLs.

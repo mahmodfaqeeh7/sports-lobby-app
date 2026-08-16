@@ -1,5 +1,5 @@
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
-import {Pressable, StyleSheet, Text, View} from 'react-native';
+import {Image, Pressable, StyleSheet, Text, View} from 'react-native';
 import {
   AppButton,
   AppScreen,
@@ -9,13 +9,19 @@ import {
   FormSection,
   LobbyCard,
   Notice,
+  PhoneFieldValue,
+  PhoneNumberField,
   SegmentTabs,
   VenueCard,
+  toE164,
 } from '../../../components';
 import {apiClient} from '../../../services/api/apiClient';
 import {AuthenticatedSession} from '../../../services/session/sessionTypes';
 import {colors, radii, spacing, typography} from '../../../theme/tokens';
 import {showError} from '../../auth/utils/authErrors';
+import {reachableBackendUrl} from '../../../config/environment';
+import {CourtImageField} from '../../courts/components/CourtImageField';
+import {pickCourtImage, SelectedCourtImage, uploadCourtImage} from '../../courts/courtImage';
 import {Court, Lobby, SaveLobbyRequest, courtsApi, lobbiesApi} from '../../lobbies/api';
 import {Sport, sportsApi} from '../../sports/api';
 import {Venue, venuesApi} from '../../venues/api';
@@ -49,9 +55,11 @@ export function VendorWorkspaceScreen({session}: VendorWorkspaceScreenProps): Re
   const [city, setCity] = useState('');
   const [area, setArea] = useState('');
   const [addressLine, setAddressLine] = useState('');
-  const [contactPhone, setContactPhone] = useState('');
+  const [contactPhone, setContactPhone] = useState<PhoneFieldValue>({countryCode: '+962', nationalNumber: ''});
   const [venueLocation, setVenueLocation] = useState<FacilityLocationValue>({latitude: '', longitude: ''});
   const [courtName, setCourtName] = useState('Court 1');
+  const [courtImage, setCourtImage] = useState<SelectedCourtImage>();
+  const [courtImageProgress, setCourtImageProgress] = useState(0);
   const [minPlayers, setMinPlayers] = useState('8');
   const [maxPlayers, setMaxPlayers] = useState('12');
   const [priceAmount, setPriceAmount] = useState('5.00');
@@ -115,8 +123,11 @@ export function VendorWorkspaceScreen({session}: VendorWorkspaceScreenProps): Re
   const createVenue = async () => {
     setBusy(true);
     try {
-      if (!venueName.trim() || !city.trim() || !addressLine.trim() || !contactPhone.trim()) {
+      if (!venueName.trim() || !city.trim() || !addressLine.trim() || !contactPhone.nationalNumber.trim()) {
         throw new Error('Add the venue name, city, address, and contact phone.');
+      }
+      if (!venueLocation.latitude.trim() || !venueLocation.longitude.trim()) {
+        throw new Error('Choose the venue location on the map.');
       }
       const latitude = Number(venueLocation.latitude);
       const longitude = Number(venueLocation.longitude);
@@ -133,7 +144,7 @@ export function VendorWorkspaceScreen({session}: VendorWorkspaceScreenProps): Re
         latitude,
         longitude,
         timezone: 'Asia/Amman',
-        contactPhone,
+        contactPhone: toE164(contactPhone.countryCode, contactPhone.nationalNumber),
       });
       setVenues(current => [created, ...current]);
       setSelectedVenueId(created.id);
@@ -141,7 +152,7 @@ export function VendorWorkspaceScreen({session}: VendorWorkspaceScreenProps): Re
       setCity('');
       setArea('');
       setAddressLine('');
-      setContactPhone('');
+      setContactPhone({countryCode: '+962', nationalNumber: ''});
       setVenueLocation({latitude: '', longitude: ''});
       setNotice({title: 'Venue created', message: 'Add courts before creating lobbies for players.', tone: 'success'});
     } catch (error) {
@@ -157,21 +168,46 @@ export function VendorWorkspaceScreen({session}: VendorWorkspaceScreenProps): Re
       if (!selectedVenueId || !selectedSportId) {
         throw new Error('Select a venue and sport first.');
       }
+      if (!courtImage) {
+        throw new Error('Choose a clear photo of the court.');
+      }
+      const upload = await courtsApi.createImageUpload(apiClient, session.tokens.accessToken, {
+        fileName: courtImage.name,
+        contentType: courtImage.contentType,
+        sizeBytes: courtImage.sizeBytes,
+      });
+      await uploadCourtImage(courtImage, upload, setCourtImageProgress);
+      await courtsApi.completeImageUpload(apiClient, session.tokens.accessToken, upload.fileId);
       const created = await courtsApi.create(apiClient, session.tokens.accessToken, selectedVenueId, {
         name: courtName,
         description: 'Bookable court.',
         defaultMinPlayers: toPositiveInt(minPlayers),
         defaultMaxPlayers: toPositiveInt(maxPlayers),
+        imageFileId: upload.fileId,
         sportIds: [selectedSportId],
       });
       setCourts(current => [created, ...current]);
       setSelectedCourtId(created.id);
       setSelectedSportId(created.sportIds[0] ?? selectedSportId);
+      setCourtImage(undefined);
+      setCourtImageProgress(0);
       setNotice({title: 'Court created', message: 'You can now create a lobby for this court.', tone: 'success'});
     } catch (error) {
       showError(error, setNotice);
     } finally {
       setBusy(false);
+    }
+  };
+
+  const chooseCourtImage = async () => {
+    try {
+      const selected = await pickCourtImage();
+      if (selected) {
+        setCourtImage(selected);
+        setCourtImageProgress(0);
+      }
+    } catch (error) {
+      showError(error, setNotice);
     }
   };
 
@@ -275,7 +311,13 @@ export function VendorWorkspaceScreen({session}: VendorWorkspaceScreenProps): Re
           <AppTextField label="Area" value={area} onChangeText={setArea} />
           <AppTextField label="Address" value={addressLine} onChangeText={setAddressLine} />
           <FacilityLocationField value={venueLocation} onChange={setVenueLocation} />
-          <AppTextField label="Contact phone" value={contactPhone} onChangeText={setContactPhone} keyboardType="phone-pad" />
+          <PhoneNumberField
+            label="Contact phone"
+            countryCode={contactPhone.countryCode}
+            nationalNumber={contactPhone.nationalNumber}
+            onChangeCountryCode={countryCode => setContactPhone(current => ({...current, countryCode}))}
+            onChangeNationalNumber={nationalNumber => setContactPhone(current => ({...current, nationalNumber}))}
+          />
           <AppButton label="Create venue" onPress={createVenue} disabled={busy} />
         </FormSection>
         {venues.length === 0 ? (
@@ -314,6 +356,16 @@ export function VendorWorkspaceScreen({session}: VendorWorkspaceScreenProps): Re
             onChange={setSelectedSportId}
           />
           <AppTextField label="Court name" value={courtName} onChangeText={setCourtName} />
+          <CourtImageField
+            value={courtImage}
+            disabled={busy}
+            progress={courtImageProgress}
+            onPick={chooseCourtImage}
+            onRemove={() => {
+              setCourtImage(undefined);
+              setCourtImageProgress(0);
+            }}
+          />
           <View style={styles.twoColumns}>
             <AppTextField label="Min players" value={minPlayers} onChangeText={setMinPlayers} keyboardType="number-pad" />
             <AppTextField label="Max players" value={maxPlayers} onChangeText={setMaxPlayers} keyboardType="number-pad" />
@@ -331,6 +383,13 @@ export function VendorWorkspaceScreen({session}: VendorWorkspaceScreenProps): Re
                 setSelectedSportId(court.sportIds[0] ?? selectedSportId);
               }}
               style={[styles.choice, selectedCourtId === court.id && styles.choiceSelected]}>
+              {court.imageUrl ? (
+                <Image
+                  source={{uri: reachableBackendUrl(court.imageUrl)}}
+                  style={styles.courtImage}
+                  resizeMode="cover"
+                />
+              ) : null}
               <Text style={styles.choiceTitle}>{court.name}</Text>
               <Text style={styles.choiceMeta}>{court.status} - {court.sportIds.map(sportName).join(', ')}</Text>
             </Pressable>
@@ -538,6 +597,11 @@ const styles = StyleSheet.create({
   choiceMeta: {
     ...typography.caption,
     color: colors.muted,
+  },
+  courtImage: {
+    aspectRatio: 16 / 9,
+    borderRadius: radii.sm,
+    width: '100%',
   },
   empty: {
     ...typography.caption,

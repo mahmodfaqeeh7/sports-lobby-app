@@ -20,6 +20,8 @@ This file explains what each document owns. Avoid duplicating canonical rules ac
 | `CODING_STANDARDS.md` | Code conventions and repo quality rules |
 | `TESTING.md` | Test strategy and critical scenarios |
 | `DEPLOYMENT.md` | Environments, CI/CD, migrations, secrets, rollback |
+| `LOCAL_DEVELOPMENT.md` | Local environment setup and run commands |
+| `PRODUCTION_READINESS.md` | Actionable launch gates and production checklist |
 | `OBSERVABILITY.md` | Logging, metrics, alerts, tracing/correlation |
 | `ROADMAP.md` | Version sequencing and future scope |
 | `OPEN_QUESTIONS.md` | Decisions intentionally not finalized |

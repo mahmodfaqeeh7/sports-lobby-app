@@ -6,6 +6,7 @@ Represent individual playable fields/courts inside a venue.
 ## Requirements
 - Vendor creates/edits courts for owned venue.
 - Court has name/status and supported sports.
+- New courts require a public JPEG/PNG/WebP image so players can inspect the booked court.
 - Optional default capacity/config.
 - Lobbies reference exactly one court and sport.
 
@@ -17,3 +18,4 @@ Represent individual playable fields/courts inside a venue.
 ## Acceptance criteria
 - Cross-vendor court edits forbidden.
 - Schedule conflict checked server-side.
+- Court image upload ownership, type, size, and completion are validated server-side.

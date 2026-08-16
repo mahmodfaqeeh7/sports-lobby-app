@@ -1,10 +1,12 @@
 import React, { ReactNode, useState } from 'react';
 import {
   KeyboardTypeOptions,
+  StyleProp,
   StyleSheet,
   Text,
   TextInput,
   TextInputProps,
+  TextStyle,
   View,
 } from 'react-native';
 import { colors, radii, spacing, typography } from '../../theme/tokens';
@@ -27,6 +29,7 @@ export type AppTextFieldProps = {
   showLabel?: boolean;
   leadingIcon?: ReactNode;
   trailingAccessory?: ReactNode;
+  inputStyle?: StyleProp<TextStyle>;
 };
 
 export function AppTextField({
@@ -45,6 +48,7 @@ export function AppTextField({
   showLabel = true,
   leadingIcon,
   trailingAccessory,
+  inputStyle,
 }: AppTextFieldProps): React.JSX.Element {
   const [focused, setFocused] = useState(false);
   const authAppearance = appearance === 'auth';
@@ -80,6 +84,7 @@ export function AppTextField({
             styles.input,
             multiline && styles.multiline,
             authAppearance && styles.authInput,
+            inputStyle,
           ]}
           value={value}
         />

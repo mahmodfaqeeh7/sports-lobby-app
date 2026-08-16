@@ -2,6 +2,7 @@ package com.sportslobby.courts.api;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import java.util.List;
@@ -12,6 +13,7 @@ public record CreateCourtRequest(
     @Size(max = 1000) String description,
     @Positive Integer defaultMinPlayers,
     @Positive Integer defaultMaxPlayers,
+    @NotNull UUID imageFileId,
     @NotEmpty @Size(max = 12) List<UUID> sportIds
 ) {
 }

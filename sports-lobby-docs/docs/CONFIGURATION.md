@@ -2,6 +2,21 @@
 
 Business policy must be centrally configurable where change is expected. Configuration is not a replacement for versioned product decisions; it is for approved tunable values.
 
+## Runtime profiles
+
+- Backend local development uses the default Spring profile `local` and reads
+  `backend/.env.local`.
+- Backend production must explicitly use `SPRING_PROFILES_ACTIVE=prod`; it reads
+  `backend/.env.production` when present, though deployed secrets should come
+  from the platform secret manager.
+- Mobile Debug builds use `mobile/.env.local`; Release builds use
+  `mobile/.env.production`.
+- `APP_ENV=local` permits simulator-specific HTTP defaults. `APP_ENV=production`
+  requires an explicit HTTPS `API_BASE_URL`.
+
+See `LOCAL_DEVELOPMENT.md` for daily commands and `PRODUCTION_READINESS.md` for
+launch requirements.
+
 ## Recommended configurable keys
 
 ### Reservations
@@ -39,7 +54,7 @@ Business policy must be centrally configurable where change is expected. Configu
 Google sign-in requires all of the following environment/application configuration:
 
 - backend: `SPORTS_LOBBY_GOOGLE_AUTH_ENABLED=true` and `SPORTS_LOBBY_GOOGLE_WEB_CLIENT_ID`;
-- mobile: matching `GOOGLE_WEB_CLIENT_ID` and `GOOGLE_IOS_CLIENT_ID` values in `mobile/.env`;
+- mobile: matching `GOOGLE_WEB_CLIENT_ID` and `GOOGLE_IOS_CLIENT_ID` values in the active `mobile/.env.local` or `mobile/.env.production` file;
 - Google Cloud: an Android OAuth client for package `com.sportslobby` and each signing SHA-1;
 - iOS: an OAuth client for bundle `com.sportslobby` and its reversed client ID registered as a URL scheme.
 
@@ -54,7 +69,7 @@ Production KYC files use private S3-compatible object storage. Set `SPORTS_LOBBY
 
 ### Production authentication and transport
 
-Set `SPORTS_LOBBY_PRODUCTION_MODE=true` in the production deployment. Startup then fails closed unless:
+Set `SPRING_PROFILES_ACTIVE=prod` in the production deployment. Startup then fails closed unless:
 
 - the development JWT secret has been replaced;
 - the test OTP is disabled;
@@ -68,7 +83,7 @@ The application has bounded per-IP and per-account throttles for login, registra
 
 Twilio settings are `SPORTS_LOBBY_TWILIO_ENABLED=true`, `TWILIO_ACCOUNT_SID`, either the recommended `TWILIO_API_KEY_SID` and `TWILIO_API_KEY_SECRET` pair or the legacy `TWILIO_AUTH_TOKEN`, and either `TWILIO_FROM_NUMBER` or `TWILIO_MESSAGING_SERVICE_SID`.
 
-Android production signing credentials are read from `SPORTS_LOBBY_ANDROID_KEYSTORE_PATH`, `SPORTS_LOBBY_ANDROID_KEYSTORE_PASSWORD`, `SPORTS_LOBBY_ANDROID_KEY_ALIAS`, and `SPORTS_LOBBY_ANDROID_KEY_PASSWORD`. Keep them in CI/deployment secrets, not `mobile/.env` or source control.
+Android production signing credentials are read from `SPORTS_LOBBY_ANDROID_KEYSTORE_PATH`, `SPORTS_LOBBY_ANDROID_KEYSTORE_PASSWORD`, `SPORTS_LOBBY_ANDROID_KEY_ALIAS`, and `SPORTS_LOBBY_ANDROID_KEY_PASSWORD`. Keep them in CI/deployment secrets, not mobile environment files or source control.
 
 ### Geography/commerce
 - enabled countries

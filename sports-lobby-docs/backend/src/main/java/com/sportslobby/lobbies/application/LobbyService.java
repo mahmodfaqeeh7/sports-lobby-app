@@ -5,6 +5,7 @@ import com.sportslobby.common.api.ApiException;
 import com.sportslobby.courts.persistence.CourtRepository;
 import com.sportslobby.lobbies.api.SaveLobbyRequest;
 import com.sportslobby.lobbies.domain.Lobby;
+import com.sportslobby.lobbies.domain.LobbyDiscoveryItem;
 import com.sportslobby.lobbies.persistence.LobbyRepository;
 import com.sportslobby.security.AuthenticatedUser;
 import com.sportslobby.venues.domain.Venue;
@@ -108,8 +109,14 @@ public class LobbyService {
     }
 
     @Transactional(readOnly = true)
-    public List<Lobby> discover(UUID sportId, String city, Instant from, Instant to) {
-        return lobbyRepository.discover(sportId, city, from, to);
+    public List<LobbyDiscoveryItem> discover(UUID sportId, String city, String search, Instant from, Instant to) {
+        return lobbyRepository.discover(sportId, city, search, from, to);
+    }
+
+    @Transactional(readOnly = true)
+    public LobbyDiscoveryItem getDiscoverable(UUID lobbyId) {
+        return lobbyRepository.findDiscoverableById(lobbyId)
+            .orElseThrow(() -> notFound("Lobby not found."));
     }
 
     private void requireValidLobbyResources(Venue venue, SaveLobbyRequest request) {

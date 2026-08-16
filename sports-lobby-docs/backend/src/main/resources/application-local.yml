@@ -1,0 +1,22 @@
+spring:
+  config:
+    import: optional:file:.env.local[.properties]
+
+server:
+  forward-headers-strategy: none
+
+app:
+  production:
+    enabled: false
+  demo-data:
+    enabled: ${SPORTS_LOBBY_DEMO_DATA_ENABLED:true}
+  auth:
+    otp:
+      test-code-enabled: true
+  security:
+    require-https: false
+  sms:
+    twilio:
+      enabled: false
+  files:
+    provider: local

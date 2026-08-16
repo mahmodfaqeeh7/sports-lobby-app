@@ -172,7 +172,7 @@ cd backend
 mvn flyway:migrate
 ```
 
-The default development database values are in `backend/.env.example` and `backend/docker-compose.yml`. Do not commit real secrets.
+The default development values are documented in `backend/.env.local.example` and `backend/docker-compose.yml`. Copy the template to the ignored `backend/.env.local`; do not commit real secrets.
 
 Health endpoints:
 - `GET /api/v1/health`

@@ -59,8 +59,10 @@ class ProductionReadinessValidatorTests {
             provider,
             "kyc-private",
             "vendor-verification",
+            "court-images",
             Duration.ofMinutes(10),
             Duration.ofMinutes(5),
+            5 * 1024 * 1024,
             5 * 1024 * 1024,
             "http://localhost:8080",
             ".local-object-storage"

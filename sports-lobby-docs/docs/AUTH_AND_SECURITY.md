@@ -28,6 +28,8 @@ Requirements:
 - per-phone/IP/device rate limits;
 - OTP values never logged;
 - successful verification consumes/invalidates the challenge;
+- local development accepts `999999` after a challenge is issued; production
+  startup rejects configurations that leave this test code enabled;
 - provider integration behind `OtpProvider`.
 
 ## 4. Passwords

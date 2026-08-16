@@ -169,6 +169,7 @@ Admin-managed.
 - `name`
 - `description`
 - `status`
+- `image_file_id` public court image used by lobby discovery
 - optional default capacity
 - created/updated timestamps
 

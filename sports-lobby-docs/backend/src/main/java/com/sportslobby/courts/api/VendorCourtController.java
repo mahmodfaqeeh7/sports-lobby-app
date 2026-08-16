@@ -3,6 +3,7 @@ package com.sportslobby.courts.api;
 import com.sportslobby.common.api.ApiErrorCode;
 import com.sportslobby.common.api.ApiException;
 import com.sportslobby.courts.domain.Court;
+import com.sportslobby.courts.application.CourtImageService;
 import com.sportslobby.courts.persistence.CourtRepository;
 import com.sportslobby.security.AuthenticatedUser;
 import com.sportslobby.sports.persistence.SportRepository;
@@ -27,17 +28,20 @@ public class VendorCourtController {
     private final VenueRepository venueRepository;
     private final CourtRepository courtRepository;
     private final SportRepository sportRepository;
+    private final CourtImageService courtImageService;
 
     public VendorCourtController(
         VendorService vendorService,
         VenueRepository venueRepository,
         CourtRepository courtRepository,
-        SportRepository sportRepository
+        SportRepository sportRepository,
+        CourtImageService courtImageService
     ) {
         this.vendorService = vendorService;
         this.venueRepository = venueRepository;
         this.courtRepository = courtRepository;
         this.sportRepository = sportRepository;
+        this.courtImageService = courtImageService;
     }
 
     @PostMapping
@@ -58,6 +62,7 @@ public class VendorCourtController {
         }
         request.sportIds().forEach(sportId -> sportRepository.findActiveById(sportId)
             .orElseThrow(() -> new ApiException(HttpStatus.BAD_REQUEST, ApiErrorCode.VALIDATION_ERROR, "Sport is not active.")));
+        courtImageService.requireUsableImage(request.imageFileId(), vendor.id());
 
         Court court = new Court(
             UUID.randomUUID(),
@@ -67,10 +72,11 @@ public class VendorCourtController {
             "ACTIVE",
             request.defaultMinPlayers(),
             request.defaultMaxPlayers(),
+            request.imageFileId(),
             request.sportIds()
         );
         courtRepository.create(court);
-        return CourtResponse.from(court);
+        return response(court);
     }
 
     @GetMapping
@@ -80,7 +86,16 @@ public class VendorCourtController {
         if (!venue.vendorId().equals(vendor.id())) {
             throw notFound("Venue not found.");
         }
-        return courtRepository.findByVenueId(venueId).stream().map(CourtResponse::from).toList();
+        return courtRepository.findByVenueId(venueId).stream().map(this::response).toList();
+    }
+
+    private CourtResponse response(Court court) {
+        var image = courtImageService.createDisplayUrl(court.imageFileId());
+        return CourtResponse.from(
+            court,
+            image.map(download -> download.downloadUrl()).orElse(null),
+            image.map(download -> download.expiresAt()).orElse(null)
+        );
     }
 
     private ApiException notFound(String message) {

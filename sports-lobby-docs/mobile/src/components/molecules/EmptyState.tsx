@@ -5,13 +5,20 @@ import {colors, spacing, typography} from '../../theme/tokens';
 type EmptyStateProps = {
   title: string;
   message: string;
+  alignment?: 'start' | 'center';
 };
 
-export function EmptyState({title, message}: EmptyStateProps): React.JSX.Element {
+export function EmptyState({
+  title,
+  message,
+  alignment = 'start',
+}: EmptyStateProps): React.JSX.Element {
+  const centered = alignment === 'center';
+
   return (
-    <View style={styles.empty}>
-      <Text style={styles.title}>{title}</Text>
-      <Text style={styles.message}>{message}</Text>
+    <View style={[styles.empty, centered && styles.centered]}>
+      <Text style={[styles.title, centered && styles.centeredText]}>{title}</Text>
+      <Text style={[styles.message, centered && styles.centeredText]}>{message}</Text>
     </View>
   );
 }
@@ -20,6 +27,12 @@ const styles = StyleSheet.create({
   empty: {
     gap: spacing.xs,
     paddingVertical: spacing.md,
+  },
+  centered: {
+    alignItems: 'center',
+  },
+  centeredText: {
+    textAlign: 'center',
   },
   title: {
     ...typography.button,

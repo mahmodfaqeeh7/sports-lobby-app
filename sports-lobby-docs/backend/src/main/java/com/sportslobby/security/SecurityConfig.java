@@ -43,7 +43,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(authorize -> authorize
                 .requestMatchers(HttpMethod.GET, "/api/v1/health").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/sports").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/v1/lobbies").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/lobbies", "/api/v1/lobbies/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/auth/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/v1/vendors/signup").permitAll()
                 .requestMatchers(HttpMethod.PUT, "/api/v1/files/local/uploads/**").permitAll()

@@ -1,4 +1,5 @@
-import { Platform } from 'react-native';
+import { launchImageLibrary } from 'react-native-image-picker';
+import {reachableBackendUrl} from '../../config/environment';
 import { DocumentUpload } from '../vendor/api';
 
 export const MAX_VERIFICATION_DOCUMENT_BYTES = 5 * 1024 * 1024;
@@ -85,49 +86,55 @@ export async function pickVerificationDocument(): Promise<
 export async function pickBusinessImage(): Promise<
   SelectedVerificationDocument | undefined
 > {
-  const { errorCodes, isErrorWithCode, keepLocalCopy, pick, types } =
-    await import('@react-native-documents/picker');
+  const response = await launchImageLibrary({
+    assetRepresentationMode: 'compatible',
+    includeBase64: false,
+    includeExtra: false,
+    maxHeight: 2400,
+    maxWidth: 2400,
+    mediaType: 'photo',
+    presentationStyle: 'fullScreen',
+    quality: 0.9,
+    restrictMimeTypes: ['image/jpeg', 'image/png'],
+    selectionLimit: 1,
+  });
 
-  try {
-    const [picked] = await pick({
-      allowMultiSelection: false,
-      allowVirtualFiles: false,
-      mode: 'import',
-      type: [types.images],
-    });
-    if (!picked || picked.error) {
-      throw new Error(picked?.error || 'The selected image could not be read.');
-    }
-    if (!picked.name || !picked.size || picked.size <= 0) {
-      throw new Error('Choose an image with a readable file name and size.');
-    }
-    if (picked.size > MAX_VERIFICATION_DOCUMENT_BYTES) {
-      throw new Error('The selected image must be 5 MB or smaller.');
-    }
-    const contentType = normalizedContentType(picked.type, picked.name);
-    if (contentType !== 'image/jpeg' && contentType !== 'image/png') {
-      throw new Error('Choose a JPEG or PNG image.');
-    }
-    const [copy] = await keepLocalCopy({
-      destination: 'cachesDirectory',
-      files: [{ fileName: picked.name, uri: picked.uri }],
-    });
-    if (copy.status !== 'success') {
-      throw new Error(copy.copyError || 'The image could not be prepared for upload.');
-    }
-    return {
-      name: picked.name,
-      contentType,
-      sizeBytes: picked.size,
-      sourceUri: picked.uri,
-      localUri: copy.localUri,
-    };
-  } catch (error) {
-    if (isErrorWithCode(error) && error.code === errorCodes.OPERATION_CANCELED) {
-      return undefined;
-    }
-    throw error;
+  if (response.didCancel) {
+    return undefined;
   }
+  if (response.errorCode) {
+    throw new Error(
+      response.errorMessage || 'The photo library could not be opened.',
+    );
+  }
+
+  const picked = response.assets?.[0];
+  if (!picked?.uri) {
+    throw new Error('The selected image could not be read.');
+  }
+  const contentType = normalizedContentType(
+    picked.type ?? null,
+    picked.fileName ?? '',
+  );
+  if (contentType !== 'image/jpeg' && contentType !== 'image/png') {
+    throw new Error('Choose a JPEG or PNG image.');
+  }
+  if (!picked.fileSize || picked.fileSize <= 0) {
+    throw new Error('The selected image size could not be determined.');
+  }
+  if (picked.fileSize > MAX_VERIFICATION_DOCUMENT_BYTES) {
+    throw new Error('The selected image must be 5 MB or smaller.');
+  }
+
+  return {
+    name:
+      picked.fileName ||
+      `business-image.${contentType === 'image/png' ? 'png' : 'jpg'}`,
+    contentType,
+    sizeBytes: picked.fileSize,
+    sourceUri: picked.uri,
+    localUri: picked.uri,
+  };
 }
 
 export async function uploadVerificationDocument(
@@ -138,7 +145,7 @@ export async function uploadVerificationDocument(
   const { default: ReactNativeBlobUtil } =
     await import('react-native-blob-util');
   const path = decodeURIComponent(document.localUri.replace(/^file:\/\//, ''));
-  const url = reachableSignedUrl(instructions.uploadUrl);
+  const url = reachableBackendUrl(instructions.uploadUrl);
   if (instructions.method.toUpperCase() !== 'PUT') {
     throw new Error('The server returned an unsupported upload method.');
   }
@@ -207,11 +214,4 @@ function normalizedContentType(
     return 'image/png';
   }
   return undefined;
-}
-
-function reachableSignedUrl(url: string): string {
-  if (Platform.OS !== 'android') {
-    return url;
-  }
-  return url.replace(/^(https?:\/\/)localhost(?=[:/])/, '$110.0.2.2');
 }

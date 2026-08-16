@@ -1,5 +1,6 @@
 package com.sportslobby.files.domain;
 
 public enum FilePurpose {
-    VENDOR_VERIFICATION_DOCUMENT
+    VENDOR_VERIFICATION_DOCUMENT,
+    COURT_IMAGE
 }

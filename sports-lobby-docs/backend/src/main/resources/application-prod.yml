@@ -1,0 +1,32 @@
+spring:
+  config:
+    import: optional:file:.env.production[.properties]
+  datasource:
+    url: ${SPORTS_LOBBY_DB_URL}
+    username: ${SPORTS_LOBBY_DB_USER}
+    password: ${SPORTS_LOBBY_DB_PASSWORD}
+
+server:
+  forward-headers-strategy: framework
+
+app:
+  production:
+    enabled: true
+  auth:
+    access-token-secret: ${SPORTS_LOBBY_ACCESS_TOKEN_SECRET}
+    otp:
+      test-code-enabled: false
+  security:
+    require-https: true
+    rate-limit:
+      enabled: true
+  sms:
+    twilio:
+      enabled: true
+  admin:
+    bootstrap:
+      enabled: false
+  files:
+    provider: s3
+    bucket: ${SPORTS_LOBBY_FILES_BUCKET}
+

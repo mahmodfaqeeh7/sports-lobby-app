@@ -82,7 +82,11 @@ public class LocalObjectStorageService implements ObjectStorageService {
         if (content.length != pending.sizeBytes()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The upload size does not match.");
         }
-        if (content.length > properties.maxVendorVerificationDocumentBytes()) {
+        long maximumBytes = Math.max(
+            properties.maxVendorVerificationDocumentBytes(),
+            properties.maxCourtImageBytes()
+        );
+        if (content.length > maximumBytes) {
             throw new ResponseStatusException(HttpStatus.PAYLOAD_TOO_LARGE, "The upload exceeds the 5 MB limit.");
         }
 

@@ -42,6 +42,8 @@ GET    /api/v1/me/reservations
 
 POST   /api/v1/vendor/venues
 POST   /api/v1/vendor/courts
+POST   /api/v1/vendor/court-images/upload-url
+POST   /api/v1/vendor/court-images/{fileId}/complete
 POST   /api/v1/vendor/lobbies
 POST   /api/v1/vendor/lobbies/{id}/publish
 POST   /api/v1/vendor/reservations/{id}/attendance
@@ -152,6 +154,8 @@ Example cursor response:
 Lobby query examples:
 
 `GET /api/v1/lobbies?sportId=...&city=Amman&from=...&to=...&maxDistanceKm=10&minAvailableSeats=1&sort=RECOMMENDED`
+
+Current discovery also accepts `search` for a bounded venue, area, or court-name match. Discovery responses include venue/court/sport display data and a short-lived `courtImageUrl`; clients must treat the URL as expiring media, not persistent identity.
 
 Validate bounded ranges to prevent abusive queries.
 

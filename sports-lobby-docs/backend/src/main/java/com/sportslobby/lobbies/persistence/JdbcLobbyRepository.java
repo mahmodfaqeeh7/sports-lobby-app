@@ -1,6 +1,7 @@
 package com.sportslobby.lobbies.persistence;
 
 import com.sportslobby.lobbies.domain.Lobby;
+import com.sportslobby.lobbies.domain.LobbyDiscoveryItem;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
@@ -97,9 +98,9 @@ public class JdbcLobbyRepository implements LobbyRepository {
     }
 
     @Override
-    public List<Lobby> discover(UUID sportId, String city, Instant from, Instant to) {
-        StringBuilder sql = new StringBuilder(selectSql());
-        sql.append(" JOIN venues v ON v.id = lobbies.venue_id WHERE lobbies.status IN ('OPEN', 'FULL', 'CONFIRMED') ");
+    public List<LobbyDiscoveryItem> discover(UUID sportId, String city, String search, Instant from, Instant to) {
+        StringBuilder sql = new StringBuilder(discoverySelectSql());
+        sql.append(" WHERE lobbies.status IN ('OPEN', 'FULL', 'CONFIRMED') AND lobbies.starts_at >= CURRENT_TIMESTAMP ");
         java.util.ArrayList<Object> args = new java.util.ArrayList<>();
         if (sportId != null) {
             sql.append("AND lobbies.sport_id = ? ");
@@ -108,6 +109,13 @@ public class JdbcLobbyRepository implements LobbyRepository {
         if (city != null && !city.isBlank()) {
             sql.append("AND LOWER(v.city) = LOWER(?) ");
             args.add(city.trim());
+        }
+        if (search != null && !search.isBlank()) {
+            sql.append("AND (LOWER(v.name) LIKE LOWER(?) OR LOWER(v.area) LIKE LOWER(?) OR LOWER(c.name) LIKE LOWER(?)) ");
+            String pattern = "%" + search.trim() + "%";
+            args.add(pattern);
+            args.add(pattern);
+            args.add(pattern);
         }
         if (from != null) {
             sql.append("AND lobbies.starts_at >= ? ");
@@ -118,7 +126,21 @@ public class JdbcLobbyRepository implements LobbyRepository {
             args.add(Timestamp.from(to));
         }
         sql.append("ORDER BY lobbies.starts_at ASC LIMIT 50");
-        return jdbcTemplate.query(sql.toString(), this::mapLobby, args.toArray());
+        return jdbcTemplate.query(sql.toString(), this::mapDiscoveryItem, args.toArray());
+    }
+
+    @Override
+    public Optional<LobbyDiscoveryItem> findDiscoverableById(UUID lobbyId) {
+        try {
+            return Optional.ofNullable(jdbcTemplate.queryForObject(
+                discoverySelectSql()
+                    + " WHERE lobbies.id = ? AND lobbies.status IN ('OPEN', 'FULL', 'CONFIRMED')",
+                this::mapDiscoveryItem,
+                lobbyId
+            ));
+        } catch (EmptyResultDataAccessException exception) {
+            return Optional.empty();
+        }
     }
 
     @Override
@@ -194,6 +216,37 @@ public class JdbcLobbyRepository implements LobbyRepository {
                    lobbies.cancellation_deadline_at, lobbies.confirmation_deadline_at, lobbies.published_at
             FROM lobbies
             """;
+    }
+
+    private String discoverySelectSql() {
+        return """
+            SELECT lobbies.id, lobbies.vendor_id, lobbies.venue_id, lobbies.court_id, lobbies.sport_id,
+                   lobbies.status, lobbies.starts_at, lobbies.ends_at, lobbies.venue_timezone_snapshot,
+                   lobbies.min_players, lobbies.max_players, lobbies.reserved_seat_count, lobbies.pricing_model,
+                   lobbies.currency_code, lobbies.total_court_price, lobbies.price_per_seat, lobbies.description,
+                   lobbies.cancellation_deadline_at, lobbies.confirmation_deadline_at, lobbies.published_at,
+                   v.name AS venue_name, v.city AS venue_city, v.area AS venue_area,
+                   v.address_line AS venue_address, c.name AS court_name, c.image_file_id AS court_image_file_id,
+                   s.code AS sport_code, s.name AS sport_name
+            FROM lobbies
+            JOIN venues v ON v.id = lobbies.venue_id AND v.status = 'ACTIVE'
+            JOIN courts c ON c.id = lobbies.court_id AND c.status = 'ACTIVE'
+            JOIN sports s ON s.id = lobbies.sport_id AND s.is_active = TRUE
+            """;
+    }
+
+    private LobbyDiscoveryItem mapDiscoveryItem(java.sql.ResultSet rs, int rowNum) throws java.sql.SQLException {
+        return new LobbyDiscoveryItem(
+            mapLobby(rs, rowNum),
+            rs.getString("venue_name"),
+            rs.getString("venue_city"),
+            rs.getString("venue_area"),
+            rs.getString("venue_address"),
+            rs.getString("court_name"),
+            rs.getObject("court_image_file_id", UUID.class),
+            rs.getString("sport_code"),
+            rs.getString("sport_name")
+        );
     }
 
     private Lobby mapLobby(java.sql.ResultSet rs, int rowNum) throws java.sql.SQLException {

@@ -76,8 +76,10 @@ class LocalObjectStorageServiceTests {
             "local",
             "private-bucket",
             "vendor-verification",
+            "court-images",
             Duration.ofMinutes(10),
             Duration.ofMinutes(5),
+            maximumBytes,
             maximumBytes,
             "http://localhost:8080/",
             storageRoot.toString()

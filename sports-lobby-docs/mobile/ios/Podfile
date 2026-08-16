@@ -8,6 +8,11 @@ require Pod::Executable.execute_command('node', ['-p',
 platform :ios, min_ios_version_supported
 prepare_react_native_project!
 
+ENVFILES = {
+  'Debug' => '$(PODS_ROOT)/../../.env.local',
+  'Release' => '$(PODS_ROOT)/../../.env.production',
+}
+
 linkage = ENV['USE_FRAMEWORKS']
 if linkage != nil
   Pod::UI.puts "Configuring Pod with #{linkage}ally linked Frameworks".green
@@ -16,6 +21,11 @@ end
 
 target 'SportsLobby' do
   config = use_native_modules!
+
+  # Google Sign-In's Swift dependencies need module maps when CocoaPods links
+  # React Native dependencies as static libraries.
+  pod 'GoogleUtilities', :modular_headers => true
+  pod 'RecaptchaInterop', :modular_headers => true
 
   use_react_native!(
     :path => config[:reactNativePath],
@@ -30,5 +40,13 @@ target 'SportsLobby' do
       :mac_catalyst_enabled => false,
       # :ccache_enabled => true
     )
+
+    installer.pods_project.targets.each do |target|
+      next unless target.name == 'react-native-config'
+
+      target.build_configurations.each do |build_config|
+        build_config.build_settings['ENVFILE'] = ENVFILES.fetch(build_config.name)
+      end
+    end
   end
 end

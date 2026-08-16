@@ -11,11 +11,21 @@ type SegmentTabsProps = {
   items: Segment[];
   value: string;
   onChange: (value: string) => void;
+  variant?: 'default' | 'pill';
 };
 
-export function SegmentTabs({items, value, onChange}: SegmentTabsProps): React.JSX.Element {
+export function SegmentTabs({
+  items,
+  value,
+  onChange,
+  variant = 'default',
+}: SegmentTabsProps): React.JSX.Element {
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      style={styles.scroll}
+      contentContainerStyle={styles.row}>
       {items.map(item => {
         const selected = item.key === value;
         return (
@@ -24,7 +34,11 @@ export function SegmentTabs({items, value, onChange}: SegmentTabsProps): React.J
             accessibilityState={{selected}}
             key={item.key}
             onPress={() => onChange(item.key)}
-            style={[styles.item, selected && styles.selected]}>
+            style={[
+              styles.item,
+              variant === 'pill' && styles.pill,
+              selected && styles.selected,
+            ]}>
             <Text style={[styles.label, selected && styles.selectedLabel]}>{item.label}</Text>
           </Pressable>
         );
@@ -34,7 +48,12 @@ export function SegmentTabs({items, value, onChange}: SegmentTabsProps): React.J
 }
 
 const styles = StyleSheet.create({
+  scroll: {
+    alignSelf: 'stretch',
+    flexGrow: 0,
+  },
   row: {
+    alignItems: 'center',
     gap: spacing.sm,
   },
   item: {
@@ -47,15 +66,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
   },
+  pill: {
+    borderRadius: 999,
+    minHeight: 44,
+    paddingHorizontal: spacing.lg,
+  },
   selected: {
-    backgroundColor: colors.text,
-    borderColor: colors.text,
+    backgroundColor: colors.brandSoft,
+    borderColor: colors.brand,
   },
   label: {
     ...typography.button,
     color: colors.muted,
   },
   selectedLabel: {
-    color: colors.surface,
+    color: colors.brand,
   },
 });

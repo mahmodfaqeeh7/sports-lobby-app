@@ -7,6 +7,10 @@ At minimum:
 - staging
 - production
 
+The repository currently defines explicit `local` and `prod` runtime profiles.
+Add a separate staging profile/configuration before deployment testing; staging
+must use production security behavior with staging-only providers and data.
+
 Use separate:
 - PostgreSQL databases;
 - S3 buckets/prefixes;
@@ -85,3 +89,8 @@ For migrations, prefer forward fixes unless rollback is proven safe.
 Use environment-specific API/config builds and standard App Store/Google Play release process when product reaches release stage.
 
 Do not put secrets in the mobile binary.
+
+Use `mobile/.env.local` for Debug and `mobile/.env.production` for Release.
+Production backend processes must set `SPRING_PROFILES_ACTIVE=prod`. Follow
+`LOCAL_DEVELOPMENT.md` for local setup and complete `PRODUCTION_READINESS.md`
+before enabling production traffic.
