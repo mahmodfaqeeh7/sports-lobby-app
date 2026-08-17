@@ -30,14 +30,15 @@ public class JdbcReservationRepository implements ReservationRepository {
     }
 
     @Override
-    public void create(Reservation reservation) {
-        jdbcTemplate.update(
+    public boolean createIfAbsent(Reservation reservation) {
+        int inserted = jdbcTemplate.update(
             """
             INSERT INTO reservations (
                 id, lobby_id, user_id, status, seat_count, unit_price_snapshot, currency_code_snapshot,
                 reserved_at, cancelled_at, cancellation_actor, cancellation_reason_code, attendance_status
             )
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT (lobby_id, user_id) WHERE status IN ('RESERVED', 'CONFIRMED') DO NOTHING
             """,
             reservation.id(),
             reservation.lobbyId(),
@@ -52,6 +53,7 @@ public class JdbcReservationRepository implements ReservationRepository {
             reservation.cancellationReasonCode(),
             reservation.attendanceStatus()
         );
+        return inserted == 1;
     }
 
     @Override

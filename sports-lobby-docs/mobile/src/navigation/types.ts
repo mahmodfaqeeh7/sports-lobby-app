@@ -10,4 +10,5 @@ export type AppTabName = keyof AppTabParamList;
 
 export type AuthenticatedStackParamList = {
   MainTabs: undefined;
+  LobbyDetails: {lobbyId: string};
 };

@@ -185,7 +185,8 @@ public class JdbcLobbyRepository implements LobbyRepository {
                 status = CASE WHEN reserved_seat_count + 1 >= max_players THEN 'FULL' ELSE status END,
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
-              AND status IN ('OPEN', 'FULL')
+              AND status = 'OPEN'
+              AND starts_at > CURRENT_TIMESTAMP
               AND reserved_seat_count < max_players
             """,
             lobbyId
@@ -226,7 +227,10 @@ public class JdbcLobbyRepository implements LobbyRepository {
                    lobbies.currency_code, lobbies.total_court_price, lobbies.price_per_seat, lobbies.description,
                    lobbies.cancellation_deadline_at, lobbies.confirmation_deadline_at, lobbies.published_at,
                    v.name AS venue_name, v.city AS venue_city, v.area AS venue_area,
-                   v.address_line AS venue_address, c.name AS court_name, c.image_file_id AS court_image_file_id,
+                   v.address_line AS venue_address, v.country_code AS venue_country_code,
+                   v.latitude AS venue_latitude, v.longitude AS venue_longitude,
+                   v.contact_phone AS venue_contact_phone,
+                   c.name AS court_name, c.image_file_id AS court_image_file_id,
                    s.code AS sport_code, s.name AS sport_name
             FROM lobbies
             JOIN venues v ON v.id = lobbies.venue_id AND v.status = 'ACTIVE'
@@ -242,6 +246,10 @@ public class JdbcLobbyRepository implements LobbyRepository {
             rs.getString("venue_city"),
             rs.getString("venue_area"),
             rs.getString("venue_address"),
+            rs.getString("venue_country_code"),
+            rs.getBigDecimal("venue_latitude"),
+            rs.getBigDecimal("venue_longitude"),
+            rs.getString("venue_contact_phone"),
             rs.getString("court_name"),
             rs.getObject("court_image_file_id", UUID.class),
             rs.getString("sport_code"),

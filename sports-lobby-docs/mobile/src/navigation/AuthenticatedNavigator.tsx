@@ -15,6 +15,7 @@ import {
 } from 'lucide-react-native';
 import { AdminReviewScreen } from '../features/admin/screens/AdminReviewScreen';
 import { ExploreScreen } from '../features/player/screens/ExploreScreen';
+import { LobbyDetailsScreen } from '../features/player/screens/LobbyDetailsScreen';
 import { MyReservationsScreen } from '../features/player/screens/MyReservationsScreen';
 import { ProfileScreen } from '../features/player/screens/ProfileScreen';
 import { VendorWorkspaceScreen } from '../features/vendor/screens/VendorWorkspaceScreen';
@@ -33,6 +34,10 @@ const Stack = createNativeStackNavigator<AuthenticatedStackParamList>();
 type AuthenticatedNavigatorProps = {
   session: AuthenticatedSession;
   onLogout: () => void;
+};
+
+type RoleTabsProps = AuthenticatedNavigatorProps & {
+  onOpenLobby: (lobbyId: string) => void;
 };
 
 type TabIconProps = {
@@ -89,14 +94,15 @@ function getTabScreenOptions({
 function RoleTabs({
   session,
   onLogout,
-}: AuthenticatedNavigatorProps): React.JSX.Element {
+  onOpenLobby,
+}: RoleTabsProps): React.JSX.Element {
   const availableRoutes = new Set(tabRoutesForRoles(session.user.roles));
 
   return (
     <Tab.Navigator screenOptions={getTabScreenOptions}>
       {availableRoutes.has('Explore') ? (
         <Tab.Screen name="Explore">
-          {() => <ExploreScreen session={session} />}
+          {() => <ExploreScreen onOpenLobby={onOpenLobby} />}
         </Tab.Screen>
       ) : null}
       {availableRoutes.has('Bookings') ? (
@@ -132,7 +138,21 @@ export function AuthenticatedNavigator(
       }}
     >
       <Stack.Screen name="MainTabs">
-        {() => <RoleTabs {...props} />}
+        {({navigation}) => (
+          <RoleTabs
+            {...props}
+            onOpenLobby={lobbyId => navigation.navigate('LobbyDetails', {lobbyId})}
+          />
+        )}
+      </Stack.Screen>
+      <Stack.Screen name="LobbyDetails">
+        {({navigation, route}) => (
+          <LobbyDetailsScreen
+            lobbyId={route.params.lobbyId}
+            onBack={navigation.goBack}
+            session={props.session}
+          />
+        )}
       </Stack.Screen>
     </Stack.Navigator>
   );

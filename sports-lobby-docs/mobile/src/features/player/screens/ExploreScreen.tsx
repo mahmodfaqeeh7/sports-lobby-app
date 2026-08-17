@@ -1,6 +1,7 @@
-import React, {useEffect, useRef, useState} from 'react';
+import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {ActivityIndicator, StyleSheet, Text, View} from 'react-native';
 import {MapPin, Search} from 'lucide-react-native';
+import {useFocusEffect} from '@react-navigation/native';
 import {
   AppScreen,
   AppTextField,
@@ -10,15 +11,13 @@ import {
   SegmentTabs,
 } from '../../../components';
 import {apiClient} from '../../../services/api/apiClient';
-import {AuthenticatedSession} from '../../../services/session/sessionTypes';
 import {colors, spacing, typography} from '../../../theme/tokens';
 import {showError} from '../../auth/utils/authErrors';
 import {Lobby, lobbiesApi} from '../../lobbies/api';
-import {reservationsApi} from '../../reservations/api';
 import {Sport, sportsApi} from '../../sports/api';
 
 type ExploreScreenProps = {
-  session: AuthenticatedSession;
+  onOpenLobby: (lobbyId: string) => void;
 };
 
 type NoticeState = {
@@ -27,17 +26,22 @@ type NoticeState = {
   tone?: 'info' | 'success' | 'error' | 'warning';
 };
 
-export function ExploreScreen({session}: ExploreScreenProps): React.JSX.Element {
+export function ExploreScreen({onOpenLobby}: ExploreScreenProps): React.JSX.Element {
   const [sports, setSports] = useState<Sport[]>([]);
   const [lobbies, setLobbies] = useState<Lobby[]>([]);
   const [selectedSportId, setSelectedSportId] = useState('');
   const [city, setCity] = useState('Amman');
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
-  const [joiningLobbyId, setJoiningLobbyId] = useState<string>();
   const [notice, setNotice] = useState<NoticeState>({});
   const [refreshKey, setRefreshKey] = useState(0);
   const searchRequestId = useRef(0);
+
+  useFocusEffect(
+    useCallback(() => {
+      setRefreshKey(value => value + 1);
+    }, []),
+  );
 
   useEffect(() => {
     let active = true;
@@ -90,24 +94,6 @@ export function ExploreScreen({session}: ExploreScreenProps): React.JSX.Element 
       clearTimeout(timer);
     };
   }, [city, refreshKey, search, selectedSportId]);
-
-  const join = async (lobbyId: string) => {
-    setJoiningLobbyId(lobbyId);
-    setNotice({});
-    try {
-      await reservationsApi.join(apiClient, session.tokens.accessToken, lobbyId);
-      setNotice({
-        title: 'Seat reserved',
-        message: 'Your booking is confirmed and is available in Bookings.',
-        tone: 'success',
-      });
-      setRefreshKey(value => value + 1);
-    } catch (error) {
-      showError(error, setNotice);
-    } finally {
-      setJoiningLobbyId(undefined);
-    }
-  };
 
   return (
     <AppScreen
@@ -182,8 +168,8 @@ export function ExploreScreen({session}: ExploreScreenProps): React.JSX.Element 
                 lobby={lobby}
                 sportName={lobby.sportName || sports.find(sport => sport.id === lobby.sportId)?.name}
                 actionLabel="Join lobby"
-                onAction={() => join(lobby.id)}
-                disabled={joiningLobbyId !== undefined}
+                onAction={() => onOpenLobby(lobby.id)}
+                onPress={() => onOpenLobby(lobby.id)}
               />
             ))
           )}

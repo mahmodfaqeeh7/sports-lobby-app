@@ -22,6 +22,10 @@ export type Lobby = {
   venueCity?: string;
   venueArea?: string;
   venueAddress?: string;
+  venueCountryCode?: string;
+  venueLatitude?: number;
+  venueLongitude?: number;
+  venueContactPhone?: string;
   courtId: string;
   courtName?: string;
   courtImageUrl?: string;

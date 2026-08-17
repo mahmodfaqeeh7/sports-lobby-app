@@ -9,7 +9,7 @@ import java.util.UUID;
 public interface ReservationRepository {
     boolean hasActiveReservation(UUID lobbyId, UUID userId);
 
-    void create(Reservation reservation);
+    boolean createIfAbsent(Reservation reservation);
 
     Optional<Reservation> findById(UUID reservationId);
 

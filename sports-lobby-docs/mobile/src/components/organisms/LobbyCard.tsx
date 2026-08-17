@@ -1,10 +1,16 @@
 import React from 'react';
-import {Image, StyleSheet, Text, View} from 'react-native';
+import {Image, Pressable, StyleSheet, Text, View} from 'react-native';
 import {CalendarDays, Clock3, MapPin, Timer, UsersRound} from 'lucide-react-native';
 import {AppButton} from '../atoms/AppButton';
 import {Badge} from '../atoms/Badge';
 import {colors, radii, spacing, typography} from '../../theme/tokens';
 import {Lobby} from '../../features/lobbies/api';
+import {
+  formatLobbyDate,
+  formatLobbyPrice,
+  formatLobbyTime,
+  lobbyDurationMinutes,
+} from '../../features/lobbies/utils/lobbyFormatting';
 import {reachableBackendUrl} from '../../config/environment';
 
 type LobbyCardProps = {
@@ -12,6 +18,7 @@ type LobbyCardProps = {
   sportName?: string;
   actionLabel?: string;
   onAction?: () => void;
+  onPress?: () => void;
   disabled?: boolean;
 };
 
@@ -20,13 +27,19 @@ export function LobbyCard({
   sportName,
   actionLabel,
   onAction,
+  onPress,
   disabled,
 }: LobbyCardProps): React.JSX.Element {
   const full = lobby.availableSeats <= 0 || lobby.status === 'FULL';
   const resolvedSportName = lobby.sportName || sportName || 'Sport lobby';
 
   return (
-    <View style={styles.card}>
+    <Pressable
+      accessibilityLabel={onPress ? `View ${resolvedSportName} lobby details` : undefined}
+      accessibilityRole={onPress ? 'button' : undefined}
+      disabled={!onPress}
+      onPress={onPress}
+      style={({pressed}) => [styles.card, pressed && styles.pressed]}>
       {lobby.courtImageUrl ? (
         <Image
           accessibilityLabel={`${lobby.courtName || resolvedSportName} court`}
@@ -60,9 +73,9 @@ export function LobbyCard({
         </View>
 
         <View style={styles.schedule}>
-          <ScheduleItem icon={<CalendarDays color={colors.brand} size={18} />} value={formatDate(lobby.startsAt)} />
-          <ScheduleItem icon={<Clock3 color={colors.icon} size={18} />} value={formatTime(lobby.startsAt)} />
-          <ScheduleItem icon={<Timer color={colors.brand} size={18} />} value={`${durationMinutes(lobby)} min`} />
+          <ScheduleItem icon={<CalendarDays color={colors.brand} size={18} />} value={formatLobbyDate(lobby.startsAt, lobby.venueTimezone)} />
+          <ScheduleItem icon={<Clock3 color={colors.icon} size={18} />} value={formatLobbyTime(lobby.startsAt, lobby.venueTimezone)} />
+          <ScheduleItem icon={<Timer color={colors.brand} size={18} />} value={`${lobbyDurationMinutes(lobby)} min`} />
         </View>
 
         <View style={styles.divider} />
@@ -73,7 +86,7 @@ export function LobbyCard({
           <View style={styles.metricDivider} />
           <Metric label="Reserved" value={String(lobby.reservedPlayers)} icon={<UsersRound color={colors.accent} size={17} />} />
           <View style={styles.metricDivider} />
-          <Metric label="per player" value={`${formatPrice(lobby.pricePerSeat)} ${lobby.currencyCode}`} accent />
+          <Metric label="per player" value={`${formatLobbyPrice(lobby.pricePerSeat)} ${lobby.currencyCode}`} accent />
         </View>
 
         {lobby.description ? <Text style={styles.description}>{lobby.description}</Text> : null}
@@ -87,7 +100,7 @@ export function LobbyCard({
           />
         ) : null}
       </View>
-    </View>
+    </Pressable>
   );
 }
 
@@ -112,22 +125,6 @@ function Metric({
       <Text style={styles.metricLabel}>{label}</Text>
     </View>
   );
-}
-
-function formatDate(value: string): string {
-  return new Date(value).toLocaleDateString(undefined, {weekday: 'short', month: 'short', day: 'numeric'});
-}
-
-function formatTime(value: string): string {
-  return new Date(value).toLocaleTimeString(undefined, {hour: 'numeric', minute: '2-digit'});
-}
-
-function durationMinutes(lobby: Lobby): number {
-  return Math.max(1, Math.round((new Date(lobby.endsAt).getTime() - new Date(lobby.startsAt).getTime()) / 60000));
-}
-
-function formatPrice(value: number): string {
-  return Number(value).toLocaleString(undefined, {maximumFractionDigits: 2});
 }
 
 const styles = StyleSheet.create({
@@ -166,4 +163,5 @@ const styles = StyleSheet.create({
   metricValue: {...typography.button, color: colors.text, textAlign: 'center'},
   metricAccent: {color: colors.brand},
   description: {...typography.caption, color: colors.muted},
+  pressed: {opacity: 0.82},
 });

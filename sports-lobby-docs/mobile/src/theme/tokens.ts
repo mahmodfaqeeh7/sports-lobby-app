@@ -14,6 +14,7 @@ export const colors = {
   subtle: '#8390A3',
   icon: '#687078',
   divider: '#E2E5E8',
+  heroOverlay: 'rgba(0, 38, 20, 0.58)',
 } as const;
 
 export const spacing = {

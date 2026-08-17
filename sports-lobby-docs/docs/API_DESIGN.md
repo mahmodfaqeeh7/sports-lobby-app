@@ -157,6 +157,8 @@ Lobby query examples:
 
 Current discovery also accepts `search` for a bounded venue, area, or court-name match. Discovery responses include venue/court/sport display data and a short-lived `courtImageUrl`; clients must treat the URL as expiring media, not persistent identity.
 
+`GET /api/v1/lobbies/{lobbyId}` returns the same public lobby shape with the structured venue country, coordinates, and contact phone required by the details experience. Coordinates and contact data come from the venue record; clients must not infer or replace them with locally calculated values.
+
 Validate bounded ranges to prevent abusive queries.
 
 ## 8. Idempotency
